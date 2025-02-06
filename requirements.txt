@@ -1,0 +1,11 @@
+PyQt5
+cryptography
+pandas
+reportlab
+openpyxl
+pyfingerprint
+pytest
+black
+flake8
+python-dotenv
+logging
