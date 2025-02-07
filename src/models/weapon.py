@@ -1,16 +1,22 @@
-class Weapon:
-    def __init__(self, serial_number: str, type: str, condition: str, location: str, status: str = "in-stock"):
-        self.serial_number = serial_number
-        self.type = type
-        self.condition = condition
-        self.location = location
-        self.status = status
+from sqlalchemy import Column, Integer, String
+from src.database import Base
+
+class Weapon(Base):  
+    __tablename__ = "weapons"  # Define the table name
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # Primary key
+    serial_number = Column(String, unique=True, nullable=False)
+    type = Column(String, nullable=False)
+    condition = Column(String, nullable=False)
+    location = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="in-stock")
 
     def __repr__(self):
-        return f"Weapon(serial_number={self.serial_number}, type={self.type}, status={self.status})"
+        return f"Weapon(id={self.id}, serial_number={self.serial_number}, type={self.type}, status={self.status})"
 
     def to_dict(self):
         return {
+            "id": self.id,
             "serial_number": self.serial_number,
             "type": self.type,
             "condition": self.condition,
@@ -25,5 +31,5 @@ class Weapon:
             type=data["type"],
             condition=data["condition"],
             location=data["location"],
-            status=data.get("status", "in-stock"),  # Default status is "in-stock"
+            status=data.get("status", "in-stock"),
         )

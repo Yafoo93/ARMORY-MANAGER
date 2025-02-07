@@ -1,16 +1,26 @@
-class User:
-    def __init__(self, service_number: str, name: str, telephone: str, role: str, fingerprint_id: int = None):
-        self.service_number = service_number
-        self.name = name
-        self.telephone = telephone
-        self.role = role
-        self.fingerprint_id = fingerprint_id
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship
+from src.database import Base
+
+class User(Base):  
+    __tablename__ = "users"  # Define table name
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    service_number = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=False)
+    telephone = Column(String, nullable=False)
+    role = Column(String, nullable=False)
+    fingerprint_id = Column(Integer, ForeignKey("fingerprints.id"), nullable=True)  # Link to fingerprints table (if used)
+
+    # Relationship (if using a Fingerprint table)
+    fingerprint = relationship("Fingerprint", back_populates="user", uselist=False)
 
     def __repr__(self):
-        return f"User(service_number={self.service_number}, name={self.name}, role={self.role})"
+        return f"User(id={self.id}, service_number={self.service_number}, name={self.name}, role={self.role})"
 
     def to_dict(self):
         return {
+            "id": self.id,
             "service_number": self.service_number,
             "name": self.name,
             "telephone": self.telephone,
