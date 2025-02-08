@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
 from src.database import Base
 
 class Weapon(Base):  
@@ -11,6 +12,9 @@ class Weapon(Base):
     location = Column(String, nullable=False)
     status = Column(String, nullable=False, default="in-stock")
 
+    records = relationship("Record", back_populates="weapon", cascade="all, delete-orphan")
+    ammunition = relationship("Ammunition", back_populates="weapon", cascade="all, delete-orphan")
+    
     def __repr__(self):
         return f"Weapon(id={self.id}, serial_number={self.serial_number}, type={self.type}, status={self.status})"
 

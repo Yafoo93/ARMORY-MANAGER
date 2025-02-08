@@ -10,7 +10,7 @@ class Fingerprint(Base):
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)  # Each user has one fingerprint
 
     # Relationship with User model
-    user = relationship("User", back_populates="fingerprint")
+    user = relationship("User", back_populates="fingerprint", foreign_keys=[user_id])
 
     def __repr__(self):
         return f"Fingerprint(id={self.id}, user_id={self.user_id})"

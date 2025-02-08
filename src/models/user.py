@@ -10,10 +10,12 @@ class User(Base):
     name = Column(String, nullable=False)
     telephone = Column(String, nullable=False)
     role = Column(String, nullable=False)
-    fingerprint_id = Column(Integer, ForeignKey("fingerprints.id"), nullable=True)  # Link to fingerprints table (if used)
+    
+    fingerprint = relationship("Fingerprint", back_populates="user", uselist=False, foreign_keys="[Fingerprint.user_id]")  # Link to fingerprints table (if used)
 
     # Relationship (if using a Fingerprint table)
     fingerprint = relationship("Fingerprint", back_populates="user", uselist=False)
+    records = relationship("Record", back_populates="officer", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"User(id={self.id}, service_number={self.service_number}, name={self.name}, role={self.role})"
