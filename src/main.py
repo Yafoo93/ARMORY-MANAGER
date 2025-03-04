@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
+from src.gui.user_management import UserManagement
+
 
 class ArmoryApp(ttk.Window):
     def __init__(self):
@@ -48,6 +50,9 @@ class ArmoryApp(ttk.Window):
         """Displays the User Management section."""
         self.clear_content()
         ttk.Label(self.content_frame, text="Manage Users", font="Arial 14 bold").pack(pady=10)
+        
+        self.clear_content()
+        UserManagement(self.content_frame)
 
         add_user_btn = ttk.Button(self.content_frame, text="Add New User", bootstyle="success")
         add_user_btn.pack(pady=5)

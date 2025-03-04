@@ -9,3 +9,5 @@ black
 flake8
 python-dotenv
 logging
+sqlalchemy
+ttkbootstrap
