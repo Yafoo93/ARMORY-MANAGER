@@ -3,6 +3,7 @@ from tkinter import messagebox
 import tkinter as tk
 from src.database import SessionLocal
 from src.crud.crud_user import create_user, get_all_users, update_user, delete_user
+from sqlalchemy import text  # Add this import at the top of the file
 
 # Set appearance mode and default color theme
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
@@ -13,23 +14,39 @@ class UserManagement(ctk.CTkFrame):
         super().__init__(parent, corner_radius=10)
         self.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
+        # Create main content frame with proper background color
+        self.content_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="transparent")
+        self.content_frame.pack(fill=tk.BOTH, expand=True)
+        
         self.parent = parent  # Store the parent reference for modal dialogs
         self.db = SessionLocal()  # Database session
 
-        # Create a canvas with scrollbar for the main content
-        self.canvas = ctk.CTkCanvas(self, highlightthickness=0)
+        # Create a canvas with scrollbar for the main content - Add background color
+        self.canvas = ctk.CTkCanvas(
+            self.content_frame, 
+            highlightthickness=0,
+            bg='#2b2b2b'  # Dark background to match theme
+        )
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Add vertical scrollbar to canvas
-        self.scrollbar = ctk.CTkScrollbar(self, orientation="vertical", command=self.canvas.yview)
+        self.scrollbar = ctk.CTkScrollbar(
+            self.content_frame, 
+            orientation="vertical", 
+            command=self.canvas.yview
+        )
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Configure the canvas to use the scrollbar
+        # Configure the canvas
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         self.canvas.bind('<Configure>', lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         
-        # Create a main container inside the canvas
-        self.main_container = ctk.CTkFrame(self.canvas, corner_radius=15, fg_color="transparent")
+        # Create a main container inside the canvas with proper background
+        self.main_container = ctk.CTkFrame(
+            self.canvas, 
+            corner_radius=15, 
+            fg_color="#2b2b2b"  # Match canvas background
+        )
         self.canvas_window = self.canvas.create_window((0, 0), window=self.main_container, anchor="nw")
         
         # Configure the canvas window to expand with the main container
@@ -41,7 +58,7 @@ class UserManagement(ctk.CTkFrame):
         
         self.title_label = ctk.CTkLabel(
             self.header_frame, 
-            text="Officer & Armorer Management",
+            text="Officer Management",
             font=ctk.CTkFont(size=24, weight="bold")
         )
         self.title_label.pack(pady=10)
@@ -72,21 +89,74 @@ class UserManagement(ctk.CTkFrame):
         self.refresh_button.pack(side=tk.LEFT, padx=10, pady=10)
 
         # Create a frame for the treeview and scrollbar
-        self.tree_frame = ctk.CTkFrame(self.main_container, corner_radius=10)
+        self.tree_frame = ctk.CTkFrame(
+            self.main_container, 
+            corner_radius=10,
+            fg_color="#2b2b2b"  # Match main container background
+        )
         self.tree_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
 
-        # Since CustomTkinter doesn't have its own Treeview, we use the standard ttk Treeview
-        # But we can style it to fit better with our custom theme
+        # Configure Treeview style
         self.style = tk.ttk.Style()
-        self.style.configure("Treeview", background="#2a2d2e", foreground="white", fieldbackground="#2a2d2e", rowheight=30)
-        self.style.configure("Treeview.Heading", background="#1f6aa5", foreground="white", relief="flat")
-        self.style.map("Treeview", background=[("selected", "#1f6aa5")])
         
-        # Create scrollbars
-        self.tree_scroll_y = ctk.CTkScrollbar(self.tree_frame, orientation="vertical")
+        # Configure the main Treeview style
+        self.style.configure(
+            "Treeview",
+            background="#2b2b2b",
+            foreground="white",
+            fieldbackground="#2b2b2b",
+            rowheight=30,
+            borderwidth=0,
+            font=('TkDefaultFont', 10)
+        )
+        
+        # Configure the Treeview headers with specific colors
+        self.style.configure(
+            "Treeview.Heading",
+            background="#1f6aa5",
+            foreground="#000000",  # Changed to black text for better visibility
+            relief="flat",
+            font=('TkDefaultFont', 10, 'bold'),
+            borderwidth=0
+        )
+        
+        # Remove the borders
+        self.style.layout("Treeview", [
+            ('Treeview.treearea', {'sticky': 'nswe'})
+        ])
+        
+        # Important: Add specific mapping for the header background and text color
+        self.style.map(
+            "Treeview.Heading",
+            background=[('active', '#1f6aa5'), ('pressed', '#1f6aa5')],
+            foreground=[('active', '#000000'), ('pressed', '#000000')],  # Keep text black in all states
+            relief=[('pressed', 'flat'), ('!pressed', 'flat')]
+        )
+        
+        # Configure selection colors
+        self.style.map(
+            "Treeview",
+            background=[("selected", "#1f6aa5")],
+            foreground=[("selected", "white")]
+        )
+        
+        # Create scrollbars with matching colors
+        self.tree_scroll_y = ctk.CTkScrollbar(
+            self.tree_frame,
+            orientation="vertical",
+            fg_color="#2b2b2b",
+            button_color="#1f6aa5",
+            button_hover_color="#2980b9"
+        )
         self.tree_scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
         
-        self.tree_scroll_x = ctk.CTkScrollbar(self.tree_frame, orientation="horizontal")
+        self.tree_scroll_x = ctk.CTkScrollbar(
+            self.tree_frame,
+            orientation="horizontal",
+            fg_color="#2b2b2b",
+            button_color="#1f6aa5",
+            button_hover_color="#2980b9"
+        )
         self.tree_scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
         
         # Create Treeview with scrollbars
@@ -116,6 +186,9 @@ class UserManagement(ctk.CTkFrame):
         self.tree.column("Unit", width=100, anchor="center", minwidth=100)
         
         self.tree.pack(fill=tk.BOTH, expand=True)
+        
+        # After creating the Treeview, add this line:
+        self.tree.tag_configure('oddrow', background='#333333')
         
         # Load initial data
         self.load_users()
@@ -166,8 +239,11 @@ class UserManagement(ctk.CTkFrame):
         # Add event binding for double-click edit
         self.tree.bind("<Double-1>", lambda event: self.edit_user())
         
-        # Bind mousewheel to canvas for scrolling
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        # Replace the global binding with widget-specific binding
+        self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        
+        # Add unbind method for cleanup
+        self.bind("<Destroy>", self._on_destroy)
         
         # Flag to track if a dialog is open
         self.dialog_open = False
@@ -182,8 +258,16 @@ class UserManagement(ctk.CTkFrame):
 
     def _on_mousewheel(self, event):
         """Handle mousewheel scrolling"""
-        # Scroll up or down based on the mouse wheel direction
-        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        try:
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        except tk.TclError:
+            pass  # Ignore errors if widget is destroyed
+
+    def _on_destroy(self, event):
+        """Clean up bindings when widget is destroyed"""
+        if event.widget == self:
+            self.canvas.unbind("<MouseWheel>")
+            self.canvas.unbind_all("<MouseWheel>")
 
     def load_users(self):
         """Load users into the table."""
@@ -194,10 +278,12 @@ class UserManagement(ctk.CTkFrame):
         # Get all users from database
         users = get_all_users(self.db)
         
-        # Insert users into treeview
-        for user in users:
-            role_display = "Armorer" if user.role == "Armory Manager" else "Unit"
-            self.tree.insert("", "end", values=(user.id, user.name, user.service_number, user.telephone, role_display))
+        # Insert users into treeview with sequential index and alternating colors
+        for index, user in enumerate(users, start=1):
+            # Use index instead of user.id for display, but keep user.id in the values
+            tags = ('oddrow',) if index % 2 else ()
+            self.tree.insert("", "end", values=(index, user.name, user.service_number, 
+                           user.telephone, user.role), tags=tags)
 
     def search_users(self):
         """Search for users based on search entry."""
@@ -217,10 +303,10 @@ class UserManagement(ctk.CTkFrame):
         for user in users:
             if (search_text in user.name.lower() or 
                 search_text in user.service_number.lower() or
-                search_text in user.telephone.lower()):
+                search_text in user.telephone.lower() or
+                search_text in user.role.lower()):  # Search in role instead of unit
                 
-                role_display = "Armorer" if user.role == "Armory Manager" else "Unit"
-                self.tree.insert("", "end", values=(user.id, user.name, user.service_number, user.telephone, role_display))
+                self.tree.insert("", "end", values=(user.id, user.name, user.service_number, user.telephone, user.role))
 
     def add_user(self):
         """Open a dialog to add a new user."""
@@ -257,23 +343,43 @@ class UserManagement(ctk.CTkFrame):
             messagebox.showwarning("Warning", "Please select an officer to delete!")
             return
         
-        user_id = self.tree.item(selected_item)["values"][0]
+        # Get the actual user ID from the database (it's stored in the tree item values)
+        display_values = self.tree.item(selected_item)["values"]
+        # Find the corresponding user in the database
+        users = get_all_users(self.db)
+        user_id = users[display_values[0] - 1].id  # Convert display index back to user ID
         
         # Create a custom confirmation dialog
         confirm_dialog = CTkMessageBox(
-            self.parent,  # Use parent window
+            self.parent,
             title="Confirm Deletion",
-            message="Are you sure you want to delete this officer?",
+            message="Are you sure you want to delete this officer? This will also delete all associated fingerprint records.",
             icon="warning",
             option_1="Cancel",
             option_2="Delete"
         )
         
         if confirm_dialog.get() == "Delete":
-            delete_user(self.db, user_id)
-            self.load_users()
-            messagebox.showinfo("Success", "Officer deleted successfully!")
-
+            try:
+                # First, delete associated fingerprints using text()
+                self.db.execute(
+                    text("DELETE FROM fingerprints WHERE user_id = :user_id"),
+                    {"user_id": user_id}
+                )
+                
+                # Then delete the user
+                delete_user(self.db, user_id)
+                
+                # Commit any pending changes
+                self.db.commit()
+                
+                self.load_users()  # This will refresh the list with new sequential numbers
+                messagebox.showinfo("Success", "Officer and associated records deleted successfully!")
+                
+            except Exception as e:
+                # If anything goes wrong, rollback the transaction
+                self.db.rollback()
+                messagebox.showerror("Error", f"Failed to delete officer: {str(e)}")
 
 class AddUserDialog(ctk.CTkToplevel):
     """Dialog for adding a new officer or armorer."""
@@ -286,8 +392,12 @@ class AddUserDialog(ctk.CTkToplevel):
         # Store the controller reference to refresh data
         self.controller = controller
         
-        # Create a canvas with scrollbar
-        self.canvas = ctk.CTkCanvas(self, highlightthickness=0)
+        # Update canvas background
+        self.canvas = ctk.CTkCanvas(
+            self, 
+            highlightthickness=0,
+            bg='#2b2b2b'  # Dark background
+        )
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         self.scrollbar = ctk.CTkScrollbar(self, orientation="vertical", command=self.canvas.yview)
@@ -295,8 +405,12 @@ class AddUserDialog(ctk.CTkToplevel):
         
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
-        # Create a main frame inside the canvas
-        self.main_frame = ctk.CTkFrame(self.canvas, corner_radius=15)
+        # Create main frame with proper background
+        self.main_frame = ctk.CTkFrame(
+            self.canvas, 
+            corner_radius=15,
+            fg_color="#2b2b2b"  # Match canvas background
+        )
         self.canvas.create_window((0, 0), window=self.main_frame, anchor="nw")
         
         # Bind the configure event to update the scroll region
@@ -365,6 +479,12 @@ class AddUserDialog(ctk.CTkToplevel):
         # Center the dialog
         self.center()
 
+        # Add mousewheel binding
+        self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        
+        # Add cleanup binding
+        self.bind("<Destroy>", self._on_destroy)
+
     def center(self):
         """Center the dialog on the parent window."""
         self.update_idletasks()
@@ -420,7 +540,7 @@ class AddUserDialog(ctk.CTkToplevel):
             CTkMessageBox(
                 self.master,  # Use the parent as parent for message box
                 title="Success", 
-                message="Officer/Armorer added successfully!",
+                message="Officer added successfully!",
                 icon="check"
             )
             
@@ -431,15 +551,28 @@ class AddUserDialog(ctk.CTkToplevel):
             CTkMessageBox(
                 self,
                 title="Error", 
-                message="Failed to add officer/armorer. Please try again.",
+                message="Failed to add officer. Please try again.",
                 icon="warning"
             )
+
+    def _on_mousewheel(self, event):
+        """Handle mousewheel scrolling"""
+        try:
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        except tk.TclError:
+            pass  # Ignore errors if widget is destroyed
+
+    def _on_destroy(self, event):
+        """Clean up bindings when widget is destroyed"""
+        if event.widget == self:
+            self.canvas.unbind("<MouseWheel>")
+            self.canvas.unbind_all("<MouseWheel>")
 
 class EditUserDialog(ctk.CTkToplevel):
     """Dialog for editing an existing officer or armorer."""
     def __init__(self, parent, controller, user_data):
         super().__init__(parent)
-        self.title("Edit Officer/Armorer")
+        self.title("Edit Officer")
         self.geometry("400x450")
         self.resizable(False, False)
         
@@ -447,8 +580,12 @@ class EditUserDialog(ctk.CTkToplevel):
         self.controller = controller
         self.user_id = user_data[0]
         
-        # Create a canvas with scrollbar
-        self.canvas = ctk.CTkCanvas(self, highlightthickness=0)
+        # Update canvas background
+        self.canvas = ctk.CTkCanvas(
+            self, 
+            highlightthickness=0,
+            bg='#2b2b2b'  # Dark background
+        )
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Add vertical scrollbar
@@ -458,20 +595,27 @@ class EditUserDialog(ctk.CTkToplevel):
         # Configure canvas
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
-        # Create main frame inside canvas
-        self.main_frame = ctk.CTkFrame(self.canvas, corner_radius=15)
+        # Create main frame with proper background
+        self.main_frame = ctk.CTkFrame(
+            self.canvas, 
+            corner_radius=15,
+            fg_color="#2b2b2b"  # Match canvas background
+        )
         self.canvas.create_window((0, 0), window=self.main_frame, anchor="nw")
         
         # Bind the configure event to update scroll region
         self.main_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         
         # Bind mousewheel to canvas for scrolling
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        
+        # Add cleanup binding
+        self.bind("<Destroy>", self._on_destroy)
 
         # Title
         self.title_label = ctk.CTkLabel(
             self.main_frame, 
-            text="Edit Officer/Armorer",
+            text="Edit Officer",
             font=ctk.CTkFont(size=20, weight="bold")
         )
         self.title_label.pack(pady=(20, 30))
@@ -495,7 +639,7 @@ class EditUserDialog(ctk.CTkToplevel):
         )
         self.role_combobox.pack(padx=30, pady=(0, 15))
         
-        # Unit field (might be role depending on your structure)
+        # Unit field - use the same value as role
         self.create_form_field("Unit:", "unit_entry", "Enter unit/department", user_data[4])
         
         # Buttons
@@ -560,7 +704,16 @@ class EditUserDialog(ctk.CTkToplevel):
 
     def _on_mousewheel(self, event):
         """Handle mousewheel scrolling"""
-        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        try:
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        except tk.TclError:
+            pass  # Ignore errors if widget is destroyed
+
+    def _on_destroy(self, event):
+        """Clean up bindings when widget is destroyed"""
+        if event.widget == self:
+            self.canvas.unbind("<MouseWheel>")
+            self.canvas.unbind_all("<MouseWheel>")
 
     def update_user(self):
         """Update officer/armorer details in the database."""
@@ -568,6 +721,7 @@ class EditUserDialog(ctk.CTkToplevel):
         service_number = self.service_entry.get()
         telephone = self.phone_entry.get()
         unit = self.unit_entry.get()
+        role = self.role_var.get()
         
         if not name or not service_number or not telephone or not unit:
             CTkMessageBox(
@@ -584,25 +738,19 @@ class EditUserDialog(ctk.CTkToplevel):
         db.close()
         
         if updated:
-            # Destroy this dialog
             self.destroy()
-            
-            # Show success message
             CTkMessageBox(
                 self.master,
                 title="Success", 
-                message="Officer/Armorer updated successfully!",
+                message="Officer updated successfully!",
                 icon="check"
             )
-            
-            # Refresh the user list
             self.controller.load_users()
         else:
-            # Show error message
             CTkMessageBox(
                 self,
                 title="Error", 
-                message="Failed to update officer/armorer. Please try again.",
+                message="Failed to update officer. Please try again.",
                 icon="warning"
             )
 
