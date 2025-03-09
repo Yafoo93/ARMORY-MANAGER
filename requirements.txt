@@ -11,3 +11,4 @@ python-dotenv
 logging
 sqlalchemy
 ttkbootstrap
+customtkinter
