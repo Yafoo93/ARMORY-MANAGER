@@ -1,17 +1,19 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from src.database import Base
-from werkzeug.security import generate_password_hash, check_password_hash
+import bcrypt
+
 
 class User(Base):  
-    __tablename__ = "users"  # Define table name
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     service_number = Column(String, unique=True, nullable=False)
     name = Column(String, nullable=False)
     telephone = Column(String, nullable=False)
     role = Column(String, nullable=False)
-    hashed_password = Column(String, nullable=False)  # NEW: Stores hashed password
+    unit = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=False)  # Stores hashed password
 
     fingerprint = relationship("Fingerprint", back_populates="user", uselist=False, foreign_keys="[Fingerprint.user_id]")  # Link to fingerprints table (if used)
     records = relationship("Record", back_populates="officer", cascade="all, delete-orphan")
@@ -37,11 +39,13 @@ class User(Base):
             role=data["role"],
         )
 
-    # ✅ NEW: Hash and verify passwords
-    def set_password(self, password):
-        """Hashes and sets the user's password."""
-        self.hashed_password = generate_password_hash(password)
+    def set_password(self, password: str):
+        """Hash and set user password using bcrypt."""
+        salt = bcrypt.gensalt()
+        self.hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
-    def check_password(self, password):
-        """Verifies the password against the stored hash."""
-        return check_password_hash(self.hashed_password, password)
+    def verify_password(self, password: str) -> bool:
+        """Check the given password against stored hash."""
+        return bcrypt.checkpw(password.encode("utf-8"), self.hashed_password.encode("utf-8"))
+# ...existing code...
+

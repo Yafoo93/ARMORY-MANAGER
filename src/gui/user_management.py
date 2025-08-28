@@ -1,9 +1,11 @@
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import Canvas, messagebox
 import tkinter as tk
 from src.database import SessionLocal
 from src.crud.crud_user import create_user, get_all_users, update_user, delete_user
-from sqlalchemy import text  # Add this import at the top of the file
+from sqlalchemy import text
+from tkinter import TclError
+
 
 # Set appearance mode and default color theme
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
@@ -114,9 +116,9 @@ class UserManagement(ctk.CTkFrame):
         self.style.configure(
             "Treeview.Heading",
             background="#1f6aa5",
-            foreground="#000000",  # Changed to black text for better visibility
+            foreground="#000000",  
             relief="flat",
-            font=('TkDefaultFont', 10, 'bold'),
+            font=('TkDefaultFont', 20, 'bold'),
             borderwidth=0
         )
         
@@ -283,7 +285,7 @@ class UserManagement(ctk.CTkFrame):
             # Use index instead of user.id for display, but keep user.id in the values
             tags = ('oddrow',) if index % 2 else ()
             self.tree.insert("", "end", values=(index, user.name, user.service_number, 
-                           user.telephone, user.role), tags=tags)
+                           user.telephone, user.unit), tags=tags)
 
     def search_users(self):
         """Search for users based on search entry."""
@@ -315,7 +317,7 @@ class UserManagement(ctk.CTkFrame):
             return
             
         self.dialog_open = True
-        dialog = AddUserDialog(self.parent, self)  # Use parent window instead of self
+        dialog = AddUserDialog(self.winfo_toplevel(), self)
         self.parent.wait_window(dialog)  # Wait for dialog to close
         self.dialog_open = False
 
@@ -383,11 +385,15 @@ class UserManagement(ctk.CTkFrame):
 
 class AddUserDialog(ctk.CTkToplevel):
     """Dialog for adding a new officer or armorer."""
-    def __init__(self, parent, controller):
-        super().__init__(parent)
+    def __init__(self, master, controller, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self.master = master
+        self.controller = controller
         self.title("Add Officer")
         self.geometry("400x450")
         self.resizable(False, False)
+        self.transient(self.master)
+        self.grab_set()
         
         # Store the controller reference to refresh data
         self.controller = controller
@@ -399,11 +405,12 @@ class AddUserDialog(ctk.CTkToplevel):
             bg='#2b2b2b'  # Dark background
         )
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
         self.scrollbar = ctk.CTkScrollbar(self, orientation="vertical", command=self.canvas.yview)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self._wheel_bind_id = self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self.bind("<Destroy>", self._on_destroy)
+
         
         # Create main frame with proper background
         self.main_frame = ctk.CTkFrame(
@@ -428,22 +435,49 @@ class AddUserDialog(ctk.CTkToplevel):
         self.create_form_field("Name:", "name_entry", "Enter full name")
         self.create_form_field("Service No:", "service_entry", "Enter service number")
         self.create_form_field("Telephone:", "phone_entry", "Enter telephone number")
+        self.create_form_field("Unit:", "unit_entry", "Enter unit/department")
         
         # Role selection
         self.role_label = ctk.CTkLabel(self.main_frame, text="Role:", anchor="w")
         self.role_label.pack(padx=30, pady=(15, 5), anchor="w")
         
-        self.role_var = ctk.StringVar(value="Unit")
+        self.role_var = ctk.StringVar(value="Role")
         self.role_combobox = ctk.CTkComboBox(
             self.main_frame,
-            values=["Unit", "Armory Manager"],
+            values=["officer", "armorer"],
             variable=self.role_var,
             width=340
         )
         self.role_combobox.pack(padx=30, pady=(0, 15))
         
-        # Unit field
-        self.create_form_field("Unit:", "unit_entry", "Enter unit/department")
+        # Password
+        pwd_label = ctk.CTkLabel(self.main_frame, text="Password:", anchor="w")
+        pwd_label.pack(padx=30, pady=(15, 5), anchor="w")
+
+        self.password_entry = ctk.CTkEntry(
+            self.main_frame,
+            placeholder_text="Enter password",
+            show="*",
+            height=35,
+            width=340
+        )
+        self.password_entry.pack(padx=30, pady=(0, 0))
+
+            # Confirm Password
+        confirm_label = ctk.CTkLabel(self.main_frame, text="Confirm Password:", anchor="w")
+        confirm_label.pack(padx=30, pady=(15, 5), anchor="w")
+
+        self.confirm_entry = ctk.CTkEntry(
+            self.main_frame,
+            placeholder_text="Re-enter password",
+            show="*",
+            height=35,
+            width=340
+        )
+        self.confirm_entry.pack(padx=30, pady=(0, 0))
+
+
+        
         
         # Buttons
         self.button_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -474,7 +508,7 @@ class AddUserDialog(ctk.CTkToplevel):
         
         # Make this window modal
         self.grab_set()
-        self.transient(parent)
+        self.transient(self.master)
         
         # Center the dialog
         self.center()
@@ -484,6 +518,8 @@ class AddUserDialog(ctk.CTkToplevel):
         
         # Add cleanup binding
         self.bind("<Destroy>", self._on_destroy)
+        
+        columns = ("ID", "Name", "Service No", "Telephone", "Unit")
 
     def center(self):
         """Center the dialog on the parent window."""
@@ -513,10 +549,12 @@ class AddUserDialog(ctk.CTkToplevel):
     def save_user(self):
         """Save officer/armorer to the database."""
         name = self.name_entry.get()
-        service_number = self.service_entry.get()
-        telephone = self.phone_entry.get()
-        unit = self.unit_entry.get()
-        role = self.role_var.get()
+        service_number = self.service_entry.get().strip()
+        telephone = self.phone_entry.get().strip()
+        unit = self.unit_entry.get().strip()
+        role = (self.role_var.get() or "").strip().lower()
+        password = self.password_entry.get()
+        confirm  = self.confirm_entry.get()
 
         if not name or not service_number or not telephone or not unit:
             CTkMessageBox(
@@ -526,34 +564,28 @@ class AddUserDialog(ctk.CTkToplevel):
                 icon="warning"
             )
             return
+        
+        if not password or len(password) < 6:
+            messagebox.showerror("Error", "Password is required (min 6 chars).")
+            return
+        if password != confirm:
+            messagebox.showerror("Error", "Passwords do not match.")
+            return
+
 
         db = SessionLocal()
-        # Create the user in the database - removed role parameter to match function signature
-        created = create_user(db, service_number, name, telephone, unit)
-        db.close()
         
-        if created:
-            # Destroy this dialog
-            self.destroy()
-            
-            # Show success message
-            CTkMessageBox(
-                self.master,  # Use the parent as parent for message box
-                title="Success", 
-                message="Officer added successfully!",
-                icon="check"
-            )
-            
-            # Refresh the user list
-            self.controller.load_users()
-        else:
-            # Show error message
-            CTkMessageBox(
-                self,
-                title="Error", 
-                message="Failed to add officer. Please try again.",
-                icon="warning"
-            )
+        try:
+            created = create_user(db, service_number, name, telephone, unit, role, password)
+        # ^ make sure your CRUD signature supports role+password (see below)
+            if created:
+                self.destroy()
+                CTkMessageBox(self.master, title="Success", message="Officer added successfully!", icon="check")
+                self.controller.load_users()
+            else:
+                CTkMessageBox(self, title="Error", message="Failed to add officer. Please try again.", icon="warning")
+        finally:
+            db.close()
 
     def _on_mousewheel(self, event):
         """Handle mousewheel scrolling"""
@@ -562,11 +594,22 @@ class AddUserDialog(ctk.CTkToplevel):
         except tk.TclError:
             pass  # Ignore errors if widget is destroyed
 
-    def _on_destroy(self, event):
-        """Clean up bindings when widget is destroyed"""
-        if event.widget == self:
-            self.canvas.unbind("<MouseWheel>")
-            self.canvas.unbind_all("<MouseWheel>")
+    def _on_destroy(self, event=None):
+        canvas = getattr(self, "canvas", None)
+        if not canvas:
+            return
+        try:
+            exists = canvas.winfo_exists()
+        except TclError:
+            return
+            
+        if exists and getattr(self, "_wheel_bind_id", None):
+            try:
+                canvas.unbind("<MouseWheel>", self._wheel_bind_id)
+            except TclError:
+                pass
+            self._wheel_bind_id = None
+
 
 class EditUserDialog(ctk.CTkToplevel):
     """Dialog for editing an existing officer or armorer."""

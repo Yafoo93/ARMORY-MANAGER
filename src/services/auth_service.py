@@ -5,6 +5,8 @@ from cryptography.fernet import Fernet
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional
+import bcrypt
+
 
 class AuthService:
     def __init__(self, db_session: Session):
@@ -98,3 +100,7 @@ class AuthService:
         return self.db.query(User).filter(
             User.service_number == service_number
         ).first()
+        
+    def check_password(password: str, hashed: str) -> bool:
+        """Verify a password against its hash."""
+        return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))

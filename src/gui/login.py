@@ -2,8 +2,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 from src.database import SessionLocal
 from src.models.user import User
-from werkzeug.security import check_password_hash
-from src.main import run_main_app  # ✅ Import function to open MainApp
+from src.main import run_main_app
 
 # Set appearance mode and color theme
 ctk.set_appearance_mode("dark")
@@ -16,7 +15,7 @@ class LoginApp(ctk.CTk):
 
         self.title("🔐 Armory Manager - Login")
         self.geometry("400x500")
-        self.resizable(False, False)  # Prevent window resizing
+        self.resizable(False, False)
 
         # ✅ Frame to hold login form
         self.login_frame = ctk.CTkFrame(self, corner_radius=12)
@@ -60,7 +59,7 @@ class LoginApp(ctk.CTk):
 
     def login(self):
         service_number = self.username_entry.get().strip()
-        password = self.password_entry.get().strip()
+        password = self.password_entry.get()
 
         if not service_number or not password:
             messagebox.showerror("Error", "Both fields are required!")
@@ -70,17 +69,26 @@ class LoginApp(ctk.CTk):
         session = SessionLocal()
         user = session.query(User).filter_by(service_number=service_number).first()
         session.close()
-
-        if user and check_password_hash(user.hashed_password, password):
-            if user.role != "Armory Manager":  # ✅ Restrict to Armory Managers only
-                messagebox.showerror("Error", "Access Denied! Only Armory Managers can log in.")
-                return
-
-            messagebox.showinfo("Success", f"Welcome, {user.name}!")
-            self.destroy()  # ✅ Close login window
-            run_main_app(user)  # ✅ Open MainApp
-        else:
+        
+        if not user:
             messagebox.showerror("Error", "Invalid credentials")
+            return
+        
+        if not user.verify_password(password):
+            messagebox.showerror("Error", "Invalid credentials")
+            return
+        
+         # ✅ Role-Based Access Control
+        role = (user.role or "").strip().lower()
+        allowed = "armorer"
+        if role != allowed:
+            messagebox.showerror("ERROR!!, Access Denied", "Only Armorers can log in.")
+            return
+        
+        messagebox.showinfo("Success", f"Welcome, {user.name}!")
+        self.withdraw()
+        # Launch main app on next loop tick
+        self.after(50, lambda: run_main_app(user))
 
 
 # ✅ Run Login UI

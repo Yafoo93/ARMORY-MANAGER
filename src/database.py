@@ -14,12 +14,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     """Import models and create database tables."""
-    from src.models.weapon import Weapon
-    from src.models.user import User
-    from src.models.record import Record
-    from src.models.ammunition import Ammunition
-    from src.models.duty_point import DutyPoint
-    from src.models.fingerprint import Fingerprint
+    import src.models
+    
+
     
     # Create tables in the database
     Base.metadata.create_all(bind=engine)

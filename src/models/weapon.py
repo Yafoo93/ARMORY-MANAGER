@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, func
+from sqlalchemy import Column, Integer, String, DateTime, func, Enum
 from sqlalchemy.orm import relationship
 from src.database import Base
+
+
 
 class Weapon(Base):  
     __tablename__ = "weapons"

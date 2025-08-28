@@ -103,6 +103,10 @@ class ArmoryApp(ctk.CTk):
             self.show_weapons()
 
     def show_dashboard(self):
+        
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from sqlalchemy import func
         """Displays the main dashboard with an overview and statistics."""
         self.clear_content()
 
@@ -122,8 +126,14 @@ class ArmoryApp(ctk.CTk):
         total_weapons = session.query(Weapon).count()
         booked_out = session.query(Booking).filter(Booking.status == "Booked Out").count()
         due_return = session.query(Booking).filter(Booking.status == "Due Return").count()
-        recent_bookings = session.query(Booking).filter(Booking.created_at >= "2025-03-01").count()  # Adjust date filter
-        total_ammunition = 5000  # Placeholder, update if you have ammunition data in your DB
+        start_date = datetime(2025, 3, 1, tzinfo=ZoneInfo("Africa/Accra"))
+
+        recent_bookings = (
+            session.query(Booking)
+            .filter(Booking.requested_at >= start_date)
+            .count()
+        )
+        total_ammunition = 5000 
 
         session.close()
 
