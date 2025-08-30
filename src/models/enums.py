@@ -1,5 +1,6 @@
 
 import enum
+from enum import Enum
 
 class BookingStatus(enum.Enum):
     REQUESTED = "REQUESTED"
@@ -9,6 +10,7 @@ class BookingStatus(enum.Enum):
     CANCELLED = "CANCELLED"
     REJECTED  = "REJECTED"
     OVERDUE   = "OVERDUE"
+    
 
 class WeaponStatus(enum.Enum):
     AVAILABLE   = "AVAILABLE"
@@ -22,3 +24,5 @@ class BiometricAction(enum.Enum):
     ISSUE_OFFICER  = "ISSUE_OFFICER"
     RETURN_ARMORER = "RETURN_ARMORER"
     RETURN_OFFICER = "RETURN_OFFICER"
+    
+    

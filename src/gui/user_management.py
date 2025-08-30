@@ -302,13 +302,13 @@ class UserManagement(ctk.CTkFrame):
             
         # Get all users and filter
         users = get_all_users(self.db)
-        for user in users:
+        for index, user in enumerate(users, start=1):
             if (search_text in user.name.lower() or 
                 search_text in user.service_number.lower() or
                 search_text in user.telephone.lower() or
                 search_text in user.role.lower()):  # Search in role instead of unit
                 
-                self.tree.insert("", "end", values=(user.id, user.name, user.service_number, user.telephone, user.role))
+                self.tree.insert("", "end", values=(index, user.name, user.service_number, user.telephone, user.unit))
 
     def add_user(self):
         """Open a dialog to add a new user."""
@@ -621,7 +621,9 @@ class EditUserDialog(ctk.CTkToplevel):
         
         # Store the controller reference to refresh data
         self.controller = controller
-        self.user_id = user_data[0]
+        # Get the actual user ID from database (not the display index)
+        users = get_all_users(SessionLocal())
+        self.user_id = users[user_data[0] - 1].id  # Convert display index back to user ID
         
         # Update canvas background
         self.canvas = ctk.CTkCanvas(
@@ -650,7 +652,7 @@ class EditUserDialog(ctk.CTkToplevel):
         self.main_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         
         # Bind mousewheel to canvas for scrolling
-        self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self._wheel_bind_id = self.canvas.bind("<MouseWheel>", self._on_mousewheel)
         
         # Add cleanup binding
         self.bind("<Destroy>", self._on_destroy)
@@ -667,23 +669,27 @@ class EditUserDialog(ctk.CTkToplevel):
         self.create_form_field("Name:", "name_entry", "Enter full name", user_data[1])
         self.create_form_field("Service No:", "service_entry", "Enter service number", user_data[2])
         self.create_form_field("Telephone:", "phone_entry", "Enter telephone number", user_data[3])
+        self.create_form_field("Unit:", "unit_entry", "Enter unit/department", user_data[4])
+        
         
         # Role selection
         self.role_label = ctk.CTkLabel(self.main_frame, text="Role:", anchor="w")
         self.role_label.pack(padx=30, pady=(15, 5), anchor="w")
         
-        current_role = "Armory Manager" if user_data[4] == "Armorer" else "Unit"
+        # Get the actual user from database to get the correct role
+        users = get_all_users(SessionLocal())
+        user_id = users[user_data[0] - 1].id  # Convert display index back to user ID
+        actual_user = next((u for u in users if u.id == user_id), None)
+        current_role = "armorer" if actual_user and actual_user.role == "armorer" else "officer"
         self.role_var = ctk.StringVar(value=current_role)
         self.role_combobox = ctk.CTkComboBox(
             self.main_frame,
-            values=["Unit", "Armory Manager"],
+            values=["officer", "armorer"],
             variable=self.role_var,
             width=340
         )
         self.role_combobox.pack(padx=30, pady=(0, 15))
         
-        # Unit field - use the same value as role
-        self.create_form_field("Unit:", "unit_entry", "Enter unit/department", user_data[4])
         
         # Buttons
         self.button_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -752,20 +758,33 @@ class EditUserDialog(ctk.CTkToplevel):
         except tk.TclError:
             pass  # Ignore errors if widget is destroyed
 
-    def _on_destroy(self, event):
-        """Clean up bindings when widget is destroyed"""
-        if event.widget == self:
-            self.canvas.unbind("<MouseWheel>")
-            self.canvas.unbind_all("<MouseWheel>")
+    def _on_destroy(self, event=None):
+        """Defensive unbind to avoid 'bad window path name' if widget is already gone."""
+        canvas = getattr(self, "canvas", None)
+        if not canvas:
+            return
+
+        try:
+            exists = canvas.winfo_exists()
+        except TclError:
+            return
+
+        bid = getattr(self, "_wheel_bind_id", None)
+        if exists and bid:
+            try:
+                canvas.unbind("<MouseWheel>", bid)
+            except TclError:
+                pass
+            self._wheel_bind_id = None
 
     def update_user(self):
         """Update officer/armorer details in the database."""
-        name = self.name_entry.get()
-        service_number = self.service_entry.get()
-        telephone = self.phone_entry.get()
-        unit = self.unit_entry.get()
-        role = self.role_var.get()
-        
+        name = self.name_entry.get().strip()
+        service_number = self.service_entry.get().strip()
+        telephone = self.phone_entry.get().strip()
+        unit = self.unit_entry.get().strip()
+        role = (self.role_var.get() or "").strip().lower()  # ✅ fixed
+
         if not name or not service_number or not telephone or not unit:
             CTkMessageBox(
                 self,
@@ -776,26 +795,27 @@ class EditUserDialog(ctk.CTkToplevel):
             return
 
         db = SessionLocal()
-        # Update the user in the database with only the supported parameters
-        updated = update_user(db, self.user_id, name, service_number, telephone)
-        db.close()
-        
-        if updated:
-            self.destroy()
-            CTkMessageBox(
-                self.master,
-                title="Success", 
-                message="Officer updated successfully!",
-                icon="check"
-            )
-            self.controller.load_users()
-        else:
-            CTkMessageBox(
-                self,
-                title="Error", 
-                message="Failed to update officer. Please try again.",
-                icon="warning"
-            )
+        try:
+            updated = update_user(db, self.user_id, name, service_number, telephone, role, unit)
+            if updated:
+                self.destroy()
+                CTkMessageBox(
+                    self.master,
+                    title="Success", 
+                    message="Officer updated successfully!",
+                    icon="check"
+                )
+                self.controller.load_users()
+            else:
+                CTkMessageBox(
+                    self,
+                    title="Error",
+                    message="Failed to update officer. Please try again.",
+                    icon="warning"
+                )
+        finally:
+            db.close()
+
 
 
 class CTkMessageBox(ctk.CTkToplevel):

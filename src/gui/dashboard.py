@@ -1,19 +1,12 @@
 import tkinter as tk
+from src.main import ArmoryApp
 
-def open_dashboard(self, user):
-    from src.gui.dashboard import ArmoryApp  # ✅ Import Dashboard Class
-    self.root.destroy()  # ✅ Close login window
-    open_dashboard(user)  # ✅ Open dashboard
-
-
-
-    tk.Label(dashboard, text=f"Welcome, {user.name}!", font=("Arial", 14)).pack(pady=20)
-
-    # Logout Button
-    tk.Button(dashboard, text="Logout", command=dashboard.destroy).pack(pady=20)
-
-    dashboard.mainloop()
+def open_dashboard(user):
+    # Create and launch ArmoryApp directly
+    app = ArmoryApp(user)
+    app.mainloop()
 
 if __name__ == "__main__":
-    app = ArmoryApp()
-    app.mainloop()
+    # For debugging, run without login
+    dummy_user = type("User", (), {"name": "Test User"})()
+    open_dashboard(dummy_user)
