@@ -368,7 +368,6 @@ class WeaponManagement(ctk.CTkFrame):
                 self.canvas.unbind("<MouseWheel>")
                 self.canvas.unbind_all("<MouseWheel>")
             except tk.TclError:
-                # Canvas already destroyed, ignore the error
                 pass
 
 class AddWeaponDialog(ctk.CTkToplevel):
@@ -510,8 +509,8 @@ class AddWeaponDialog(ctk.CTkToplevel):
         """Save weapon to database"""
         weapon_type = self.type_entry.get()
         serial_number = self.serial_entry.get()
-        status = self.status_var.get()
-        condition = self.condition_var.get()
+        status = self.status_combobox.get()
+        condition = self.condition_combobox.get()
 
         if not all([weapon_type, serial_number]):
             messagebox.showwarning("Warning", "All fields are required!")
@@ -574,15 +573,29 @@ class EditWeaponDialog(AddWeaponDialog):
         serial_number = self.serial_entry.get()
         status = self.status_var.get()
         condition = self.condition_var.get()
+        
+        # Use combobox values directly instead of StringVar
+        status = self.status_combobox.get()
+        condition = self.condition_combobox.get()
 
         if not all([weapon_type, serial_number]):
             messagebox.showwarning("Warning", "All fields are required!")
             return
 
         try:
-            # Get the actual weapon ID from the database
+            # Get the actual weapon ID from the database using serial number
+            # This is more reliable than using display index
             weapons = get_all_weapons(self.controller.db)
-            weapon_id = weapons[self.weapon_data[0] - 1].id
+            weapon_id = None
+            for weapon in weapons:
+                if weapon.serial_number == self.weapon_data[2]:  # serial_number is at index 2
+                    weapon_id = weapon.id
+                    break
+            
+            if weapon_id is None:
+                messagebox.showerror("Error", "Weapon not found in database!")
+                return
+            
             
             update_weapon(
                 self.controller.db,
