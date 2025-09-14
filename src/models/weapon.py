@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, func, Enum
 from sqlalchemy.orm import relationship
 from src.database import Base
+from sqlalchemy import Column, Integer, String, ForeignKey
 
 
 
@@ -16,9 +17,9 @@ class Weapon(Base):
     last_service = Column(DateTime, server_default=func.now())
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    caliber = Column(String, nullable=True)
 
     records = relationship("Record", back_populates="weapon", cascade="all, delete-orphan")
-    ammunition = relationship("Ammunition", back_populates="weapon", cascade="all, delete-orphan")
     
     # ✅ Add the relationship to Booking model
     bookings = relationship("Booking", back_populates="weapon", cascade="all, delete-orphan")

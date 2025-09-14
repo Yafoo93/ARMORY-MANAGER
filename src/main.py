@@ -4,6 +4,11 @@ from src.gui.weapon_management import WeaponManagement
 from src.database import SessionLocal
 from src.models.weapon import Weapon
 from src.models.booking import Booking
+from src.gui.ammunition_management import AmmunitionManagement
+from sqlalchemy import func
+from src.models.ammunition import Ammunition
+
+
 
 # Set appearance mode and default color theme
 ctk.set_appearance_mode("dark")
@@ -101,18 +106,33 @@ class ArmoryApp(ctk.CTk):
             self.show_users()
         elif frame_name == "weapons":
             self.show_weapons()
+        elif frame_name == "ammunition":
+            self.show_ammunition()
+        elif frame_name == "records":
+        # TODO: hook your Booking/Return screen here when ready
+        # For now just reuse dashboard or show a placeholder frame
+            self.show_dashboard()
+        elif frame_name == "duty_points":
+        # TODO: hook Duty Points management here
+            self.show_dashboard()
+
 
     def show_dashboard(self):
-        
+        """Displays the main dashboard with an overview and statistics."""
+        # local imports (ok here)
         from datetime import datetime
         from zoneinfo import ZoneInfo
         from sqlalchemy import func
-        """Displays the main dashboard with an overview and statistics."""
+
         self.clear_content()
 
         # Dashboard Title
-        welcome_label = ctk.CTkLabel(self.content_frame, text="Welcome to Armory Management System",
-                                     font=ctk.CTkFont(size=24, weight="bold"), text_color="white")
+        welcome_label = ctk.CTkLabel(
+        self.content_frame,
+        text="Welcome to Armory Management System",
+        font=ctk.CTkFont(size=24, weight="bold"),
+        text_color="white",
+        )
         welcome_label.pack(pady=(20, 10))
 
         # Quick Stats Grid
@@ -122,27 +142,33 @@ class ArmoryApp(ctk.CTk):
 
         # Fetch Data from the Database
         session = SessionLocal()
+        try:
+            total_weapons = session.query(Weapon).count()
 
-        total_weapons = session.query(Weapon).count()
-        booked_out = session.query(Booking).filter(Booking.status == "Booked Out").count()
-        due_return = session.query(Booking).filter(Booking.status == "Due Return").count()
-        start_date = datetime(2025, 3, 1, tzinfo=ZoneInfo("Africa/Accra"))
+            # TODO: adjust to your real BookingStatus values (e.g., "ISSUED", "DUE_RETURN")
+            booked_out = session.query(Booking).filter(Booking.status == "Booked Out").count()
+            due_return = session.query(Booking).filter(Booking.status == "Due Return").count()
 
-        recent_bookings = (
+            # Recent anchor (Africa/Accra)
+            start_date = datetime(2025, 3, 1, tzinfo=ZoneInfo("Africa/Accra"))
+            recent_bookings = (
             session.query(Booking)
             .filter(Booking.requested_at >= start_date)
             .count()
-        )
-        total_ammunition = 5000 
+            )
 
-        session.close()
+            # Ammunition sum
+            total_ammunition = session.query(func.coalesce(func.sum(Ammunition.count), 0)).scalar()
+        finally:
+            session.close()
 
         # Display Statistics
-        self.create_stat_box(stats_frame, 0, 0, "Total Weapons in Stock", str(total_weapons), "#2fa572")  # Green
-        self.create_stat_box(stats_frame, 0, 1, "Weapons Booked Out", str(booked_out), "#c75450")  # Red
-        self.create_stat_box(stats_frame, 0, 2, "Weapons Due Return", str(due_return), "#e69138")  # Orange
-        self.create_stat_box(stats_frame, 1, 0, "Recently Booked (24h)", str(recent_bookings), "#3d85c6")  # Blue
-        self.create_stat_box(stats_frame, 1, 1, "Ammunition Count", str(total_ammunition), "#674ea7")  # Purple
+        self.create_stat_box(stats_frame, 0, 0, "Total Weapons in Stock", str(total_weapons), "#2fa572")
+        self.create_stat_box(stats_frame, 0, 1, "Weapons Booked Out", str(booked_out), "#c75450")
+        self.create_stat_box(stats_frame, 0, 2, "Weapons Due Return", str(due_return), "#e69138")
+        self.create_stat_box(stats_frame, 1, 0, "Recently Booked (24h)", str(recent_bookings), "#3d85c6")
+        self.create_stat_box(stats_frame, 1, 1, "Ammunition Count", str(total_ammunition), "#674ea7")
+
 
     def create_stat_box(self, parent, row, column, title, value, color):
         """Helper function to create a stat box."""
@@ -161,6 +187,12 @@ class ArmoryApp(ctk.CTk):
         """Displays the Weapons Management section."""
         self.clear_content()
         WeaponManagement(self.content_frame)
+        
+    def show_ammunition(self):
+        """Displays the Ammunition Management section."""
+        self.clear_content()
+        AmmunitionManagement(self.content_frame)
+
 
     def clear_content(self):
         """Clears the content area before displaying new content."""
