@@ -7,5 +7,6 @@ from src.models.duty_point import DutyPoint
 from src.models.fingerprint import Fingerprint
 from src.database import init_db
 from .booking import Booking 
+from .shift import Shift
 
 init_db()
