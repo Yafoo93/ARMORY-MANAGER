@@ -22,3 +22,6 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
+
+exclude: |
+  (^venv/|^\.venv/|^__pycache__/)

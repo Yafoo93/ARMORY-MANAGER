@@ -38,3 +38,8 @@ dist/
 *.sqlite
 /database/*.db
 /database/*.sqlite
+venv/
+.venv/
+.env/
+__pycache__/
+*.pyc
