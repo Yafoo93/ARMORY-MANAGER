@@ -135,17 +135,29 @@ class ArmoryApp(ctk.CTk):
             booked_out = session.query(Booking).filter(Booking.status == "Booked Out").count()
             due_return = session.query(Booking).filter(Booking.status == "Due Return").count()
 
-            # Only compute if 'requested_at' exists on the model
-            start_date = datetime(2025, 3, 1, tzinfo=ZoneInfo("Africa/Accra"))
+            # Handle timezone safely (Accra timezone or fallback to UTC)
+            from datetime import timezone
+            try:
+                accra_tz = ZoneInfo("Africa/Accra")  # ✅ Correct timezone format
+            except Exception:
+                accra_tz = timezone.utc  # fallback if zoneinfo not available
+
+            # Define start date in Accra time zone (or UTC fallback)
+            start_date = datetime(2025, 3, 1, tzinfo=accra_tz)
+
+            # Compute recent bookings if the attribute exists
             if hasattr(Booking, "requested_at"):
                 recent_bookings = (
-                    session.query(Booking).filter(Booking.requested_at >= start_date).count()
+                    session.query(Booking)
+                    .filter(Booking.requested_at >= start_date)
+                    .count()
                 )
             else:
                 recent_bookings = 0
 
             # TODO: wire to real ammo table once implemented
             total_ammunition = 5000
+
         except Exception as e:
             import traceback
 
