@@ -2,6 +2,8 @@ from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from src.database import Base
 import bcrypt
+from src.models.booking import Booking
+
 
 
 class User(Base):  
@@ -13,10 +15,12 @@ class User(Base):
     telephone = Column(String, nullable=False)
     role = Column(String, nullable=False)
     unit = Column(String, nullable=True)
-    hashed_password = Column(String, nullable=False)  # Stores hashed password
+    hashed_password = Column(String, nullable=False)
 
-    fingerprint = relationship("Fingerprint", back_populates="user", uselist=False, foreign_keys="[Fingerprint.user_id]")  # Link to fingerprints table (if used)
+    fingerprint = relationship("Fingerprint", back_populates="user", uselist=False, foreign_keys="[Fingerprint.user_id]")
     records = relationship("Record", back_populates="officer", cascade="all, delete-orphan")
+    bookings_as_officer = relationship("Booking", foreign_keys="[Booking.officer_id]", back_populates="officer")
+    bookings_as_armorer = relationship("Booking", foreign_keys="[Booking.armorer_id]", back_populates="armorer")
 
     def __repr__(self):
         return f"User(id={self.id}, service_number={self.service_number}, name={self.name}, role={self.role})"
@@ -47,5 +51,8 @@ class User(Base):
     def verify_password(self, password: str) -> bool:
         """Check the given password against stored hash."""
         return bcrypt.checkpw(password.encode("utf-8"), self.hashed_password.encode("utf-8"))
-# ...existing code...
+    
+   
+
+
 

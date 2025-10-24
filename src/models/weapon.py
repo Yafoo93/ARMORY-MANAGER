@@ -4,6 +4,7 @@ from src.database import Base
 
 
 
+
 class Weapon(Base):  
     __tablename__ = "weapons"
 
@@ -19,9 +20,8 @@ class Weapon(Base):
 
     records = relationship("Record", back_populates="weapon", cascade="all, delete-orphan")
     ammunition = relationship("Ammunition", back_populates="weapon", cascade="all, delete-orphan")
-    
-    # ✅ Add the relationship to Booking model
     bookings = relationship("Booking", back_populates="weapon", cascade="all, delete-orphan")
+    
 
     def __repr__(self):
         return f"Weapon(id={self.id}, serial_number={self.serial_number}, type={self.type}, status={self.status})"

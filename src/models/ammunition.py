@@ -3,14 +3,16 @@ from sqlalchemy.orm import relationship
 from src.database import Base
 
 class Ammunition(Base):
-    __tablename__ = "ammunition"  # Define table name
+    __tablename__ = "ammunition" 
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    weapon_id = Column(Integer, ForeignKey("weapons.id"), nullable=False)  # Link to Weapons table
+    weapon_id = Column(Integer, ForeignKey("weapons.id"), nullable=False)
     count = Column(Integer, nullable=False)
 
     # Relationship with Weapon model
     weapon = relationship("Weapon", back_populates="ammunition")
+    bookings = relationship("Booking", back_populates="ammunition", cascade="all, delete-orphan")
+
 
     def __repr__(self):
         return f"Ammunition(id={self.id}, weapon_id={self.weapon_id}, count={self.count})"

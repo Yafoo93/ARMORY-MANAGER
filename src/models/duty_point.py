@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
 from src.database import Base
 
+
 class DutyPoint(Base):
     __tablename__ = "duty_points"  # Define table name
 
@@ -10,6 +11,8 @@ class DutyPoint(Base):
     description = Column(String, nullable=True)
     
     records = relationship("Record", back_populates="duty_point", cascade="all, delete-orphan")
+    bookings = relationship("Booking", back_populates="duty_point", cascade="all, delete-orphan")
+
 
     def __repr__(self):
         return f"DutyPoint(id={self.id}, location={self.location})"
