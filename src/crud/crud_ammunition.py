@@ -1,13 +1,13 @@
-from typing import List, Optional, Tuple
-from sqlalchemy.orm import Session
+from typing import List, Optional
+
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
 from src.models.ammunition import Ammunition
 
+
 def list_ammunition(
-    db_session: Session,
-    query_text: str = "",
-    limit: int = 200,
-    offset: int = 0
+    db_session: Session, query_text: str = "", limit: int = 200, offset: int = 0
 ) -> List[Ammunition]:
     q = db_session.query(Ammunition)
     if query_text:
@@ -27,6 +27,7 @@ def list_ammunition(
         q = q.offset(offset)
     return q.all()
 
+
 def create_ammunition(
     db_session: Session,
     category: str,
@@ -38,8 +39,10 @@ def create_ammunition(
 ) -> Ammunition:
     existing = (
         db_session.query(Ammunition)
-        .filter(Ammunition.platform == platform.strip(),
-                Ammunition.caliber == caliber.strip())
+        .filter(
+            Ammunition.platform == platform.strip(),
+            Ammunition.caliber == caliber.strip(),
+        )
         .first()
     )
     if existing:
@@ -56,6 +59,7 @@ def create_ammunition(
     db_session.commit()
     db_session.refresh(ammo)
     return ammo
+
 
 def update_ammunition(
     db_session: Session,
@@ -83,6 +87,7 @@ def update_ammunition(
     db_session.refresh(ammo)
     return ammo
 
+
 def delete_ammunition(db_session: Session, ammo_id: int) -> bool:
     ammo = db_session.query(Ammunition).get(ammo_id)
     if not ammo:
@@ -90,6 +95,7 @@ def delete_ammunition(db_session: Session, ammo_id: int) -> bool:
     db_session.delete(ammo)
     db_session.commit()
     return True
+
 
 def adjust_stock(db_session: Session, ammo_id: int, delta: int) -> Optional[Ammunition]:
     """Positive delta = add; negative delta = consume (but not below zero)."""
@@ -103,6 +109,7 @@ def adjust_stock(db_session: Session, ammo_id: int, delta: int) -> Optional[Ammu
     db_session.commit()
     db_session.refresh(ammo)
     return ammo
+
 
 def get_ammunition_by_id(db_session: Session, ammo_id: int) -> Optional[Ammunition]:
     return db_session.query(Ammunition).get(ammo_id)

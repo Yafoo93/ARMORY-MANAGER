@@ -1,7 +1,9 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from src.database import Base
+
 
 class Shift(Base):
     __tablename__ = "shifts"

@@ -1,11 +1,12 @@
-import sys
 import os
+import sys
 
 # Add the project root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.database import SessionLocal
-from src.crud.crud_weapon import create_weapon, get_all_weapons
+# Import after path modification
+from src.crud.crud_weapon import create_weapon, get_all_weapons  # noqa: E402
+from src.database import SessionLocal  # noqa: E402
 
 db = SessionLocal()
 

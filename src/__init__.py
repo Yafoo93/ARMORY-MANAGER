@@ -1,7 +1,9 @@
-
-
-
 __all__ = [
-    "User", "Weapon", "Ammunition", "DutyPoint",
-    "Record", "Fingerprint", "Booking"
+    "User",
+    "Weapon",
+    "Ammunition",
+    "DutyPoint",
+    "Record",
+    "Fingerprint",
+    "Booking",
 ]

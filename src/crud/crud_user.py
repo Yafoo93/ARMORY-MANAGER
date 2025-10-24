@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from src.models.user import User
 
