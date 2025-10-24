@@ -14,7 +14,7 @@ class User(Base):
     telephone = Column(String, nullable=False)
     role = Column(String, nullable=False)
     unit = Column(String, nullable=True)
-    hashed_password = Column(String, nullable=False)  # Stores hashed password
+    hashed_password = Column(String, nullable=False)
 
     fingerprint = relationship(
         "Fingerprint",
@@ -23,6 +23,12 @@ class User(Base):
         foreign_keys="[Fingerprint.user_id]",
     )  # Link to fingerprints table (if used)
     records = relationship("Record", back_populates="officer", cascade="all, delete-orphan")
+    bookings_as_officer = relationship(
+        "Booking", foreign_keys="[Booking.officer_id]", back_populates="officer"
+    )
+    bookings_as_armorer = relationship(
+        "Booking", foreign_keys="[Booking.armorer_id]", back_populates="armorer"
+    )
 
     def __repr__(self):
         return (
@@ -56,6 +62,3 @@ class User(Base):
     def verify_password(self, password: str) -> bool:
         """Check the given password against stored hash."""
         return bcrypt.checkpw(password.encode("utf-8"), self.hashed_password.encode("utf-8"))
-
-
-# ...existing code...

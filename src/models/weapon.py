@@ -19,6 +19,7 @@ class Weapon(Base):
     caliber = Column(String, nullable=True)
 
     records = relationship("Record", back_populates="weapon", cascade="all, delete-orphan")
+    ammunition = relationship("Ammunition", back_populates="weapon", cascade="all, delete-orphan")
 
     # ✅ Add the relationship to Booking model
     bookings = relationship("Booking", back_populates="weapon", cascade="all, delete-orphan")
