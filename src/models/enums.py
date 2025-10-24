@@ -22,7 +22,8 @@ class WeaponStatus(PyEnum):
     AVAILABLE = "AVAILABLE"
     RESERVED = "RESERVED"
     ISSUED = "ISSUED"
-    MAINTENANCE = "MAINTENANCE"
+    MISSING = "MISSING"
+    DAMAGED = "DAMAGED"
 
 
 
