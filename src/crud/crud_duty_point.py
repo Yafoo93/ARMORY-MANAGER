@@ -1,38 +1,33 @@
+# src/crud/crud_duty_point.py
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from src.models.duty_point import DutyPoint
 
-# Create a new duty point
-def create_duty_point(db: Session, location: str, description: str = None):
-    new_duty_point = DutyPoint(location=location, description=description)
-    db.add(new_duty_point)
-    db.commit()
-    db.refresh(new_duty_point)
-    return new_duty_point
+def create_duty_point(db: Session, location: str, description: str | None = None):
+    dp = DutyPoint(location=location.strip(), description=(description or "").strip() or None)
+    db.add(dp)
+    try:
+        db.commit()
+        db.refresh(dp)
+        return dp, None
+    except IntegrityError as e:
+        db.rollback()
+        return None, "Duty point with this location already exists."
+    except Exception as e:
+        db.rollback()
+        return None, str(e)
 
-# Get a duty point by ID
-def get_duty_point(db: Session, duty_point_id: int):
-    return db.query(DutyPoint).filter(DutyPoint.id == duty_point_id).first()
-
-# Get all duty points
 def get_all_duty_points(db: Session):
-    return db.query(DutyPoint).all()
+    return db.query(DutyPoint).order_by(DutyPoint.location.asc()).all()
 
-# Update a duty point
-def update_duty_point(db: Session, duty_point_id: int, location: str = None, description: str = None):
-    duty_point = db.query(DutyPoint).filter(DutyPoint.id == duty_point_id).first()
-    if duty_point:
-        if location:
-            duty_point.location = location
-        if description:
-            duty_point.description = description
+def delete_duty_point(db: Session, dp_id: int) -> tuple[bool, str | None]:
+    dp = db.query(DutyPoint).filter(DutyPoint.id == dp_id).first()
+    if not dp:
+        return False, "Not found."
+    try:
+        db.delete(dp)
         db.commit()
-        db.refresh(duty_point)
-    return duty_point
-
-# Delete a duty point
-def delete_duty_point(db: Session, duty_point_id: int):
-    duty_point = db.query(DutyPoint).filter(DutyPoint.id == duty_point_id).first()
-    if duty_point:
-        db.delete(duty_point)
-        db.commit()
-    return duty_point
+        return True, None
+    except Exception as e:
+        db.rollback()
+        return False, str(e)

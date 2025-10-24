@@ -1,34 +1,38 @@
-# Python
+ # ===========================
+# Python / CustomTkinter Project
+# ===========================
+
+# Byte-compiled / cache files
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
+
+# Virtual environments
 venv/
-env/
-.env
-.venv
+.env/
+.venv/
 
-# IDE
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
+# Database files
+database/*.db
+*.sqlite
+*.sqlite3
 
-# OS
+# Logs and temp files
+*.log
+*.tmp
+
+# System files
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
+# IDE / Editor settings
+.vscode/
+.idea/
 
-# Database
-*.db
-
-# Backup
-*.bak
-
-# Build
+# Compiled executables
+*.exe
+*.dll
+*.so
 build/
 dist/
-*.egg-info/
+

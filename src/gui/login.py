@@ -2,7 +2,6 @@ import customtkinter as ctk
 from tkinter import messagebox
 from src.database import SessionLocal
 from src.models.user import User
-from src.main import run_main_app
 
 # Set appearance mode and color theme
 ctk.set_appearance_mode("dark")
@@ -67,28 +66,46 @@ class LoginApp(ctk.CTk):
 
         # ✅ Database Authentication
         session = SessionLocal()
-        user = session.query(User).filter_by(service_number=service_number).first()
-        session.close()
-        
+        try:
+            user = session.query(User).filter_by(service_number=service_number).first()
+        finally:
+            session.close()
+
         if not user:
             messagebox.showerror("Error", "Invalid credentials")
             return
-        
+
+        # Ensure your User model exposes verify_password() or change this to user.check_password()
         if not user.verify_password(password):
             messagebox.showerror("Error", "Invalid credentials")
             return
-        
-         # ✅ Role-Based Access Control
+
+        # ✅ Role-Based Access Control
         role = (user.role or "").strip().lower()
         allowed = "armorer"
         if role != allowed:
             messagebox.showerror("ERROR!!, Access Denied", "Only Armorers can log in.")
             return
-        
+
         messagebox.showinfo("Success", f"Welcome, {user.name}!")
+
+        # Launch main app shortly after closing login to avoid double mainloops
         self.withdraw()
-        # Launch main app on next loop tick
-        self.after(50, lambda: run_main_app(user))
+        self.after(50, self._launch_main, user)
+
+    def _launch_main(self, user):
+        # Import here to avoid circular import at module import time
+        from src.main import ArmoryApp
+        try:
+            self.destroy()
+            app = ArmoryApp(user)
+            app.mainloop()
+        except Exception as e:
+            import traceback
+
+            print("[Login->Main] Failed to launch main app:")
+            traceback.print_exc()
+            messagebox.showerror("Launch Error", str(e))
 
 
 # ✅ Run Login UI

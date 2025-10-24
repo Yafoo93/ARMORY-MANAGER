@@ -1,6 +1,11 @@
 import customtkinter as ctk
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from sqlalchemy import func
+
 from src.gui.user_management import UserManagement
 from src.gui.weapon_management import WeaponManagement
+from src.gui.duty_point_management import DutyPointManagement
 from src.database import SessionLocal
 from src.models.weapon import Weapon
 from src.models.booking import Booking
@@ -44,7 +49,7 @@ class ArmoryApp(ctk.CTk):
             "weapons": "Manage Weapons",
             "ammunition": "Manage Ammunition",
             "records": "Booking & Return",
-            "duty_points": "Duty Points"
+            "duty_points": "Duty Points",
         }
 
         for idx, (key, text) in enumerate(menu_items.items()):
@@ -58,7 +63,7 @@ class ArmoryApp(ctk.CTk):
                 text_color="white",
                 hover_color="#1f538d",
                 anchor="w",
-                command=lambda k=key: self.show_frame(k)
+                command=lambda k=key: self.show_frame(k),
             )
             button.grid(row=idx + 2, column=0, padx=20, pady=5, sticky="ew")
             self.menu_buttons[key] = button
@@ -68,7 +73,7 @@ class ArmoryApp(ctk.CTk):
             self.sidebar,
             text=f"On Duty: {self.user.name}" if self.user and hasattr(self.user, "name") else "Not Signed In",
             font=ctk.CTkFont(size=12),
-            anchor="w"
+            anchor="w",
         )
         self.profile_label.grid(row=8, column=0, padx=20, pady=(5, 10))
 
@@ -80,7 +85,7 @@ class ArmoryApp(ctk.CTk):
             height=32,
             fg_color="#c75450",
             hover_color="#b44743",
-            command=self.sign_out
+            command=self.sign_out,
         )
         self.sign_out_button.grid(row=9, column=0, padx=20, pady=(0, 10), sticky="ew")
 
@@ -92,27 +97,30 @@ class ArmoryApp(ctk.CTk):
         self.show_dashboard()
 
     def show_frame(self, frame_name):
-        """Switch between frames."""
+        """Switch between application frames."""
         self.clear_content()
 
-        if frame_name == "dashboard":
-            self.show_dashboard()
-        elif frame_name == "users":
-            self.show_users()
-        elif frame_name == "weapons":
-            self.show_weapons()
+        routes = {
+            "dashboard": self.show_dashboard,
+            "users": self.show_users,
+            "weapons": self.show_weapons,
+            "duty_points": self.show_duty_points,
+            "ammunition": lambda: self.show_placeholder("Ammunition module coming next…"),
+            "records": lambda: self.show_placeholder("Booking & Return module coming next…"),
+        }
+        routes.get(frame_name, self.show_dashboard)()
 
     def show_dashboard(self):
-        
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
-        from sqlalchemy import func
         """Displays the main dashboard with an overview and statistics."""
         self.clear_content()
 
         # Dashboard Title
-        welcome_label = ctk.CTkLabel(self.content_frame, text="Welcome to Armory Management System",
-                                     font=ctk.CTkFont(size=24, weight="bold"), text_color="white")
+        welcome_label = ctk.CTkLabel(
+            self.content_frame,
+            text="Welcome to Armory Management System",
+            font=ctk.CTkFont(size=24, weight="bold"),
+            text_color="white",
+        )
         welcome_label.pack(pady=(20, 10))
 
         # Quick Stats Grid
@@ -122,26 +130,44 @@ class ArmoryApp(ctk.CTk):
 
         # Fetch Data from the Database
         session = SessionLocal()
+        try:
+            total_weapons = session.query(Weapon).count()
+            booked_out = session.query(Booking).filter(Booking.status == "Booked Out").count()
+            due_return = session.query(Booking).filter(Booking.status == "Due Return").count()
 
-        total_weapons = session.query(Weapon).count()
-        booked_out = session.query(Booking).filter(Booking.status == "Booked Out").count()
-        due_return = session.query(Booking).filter(Booking.status == "Due Return").count()
-        start_date = datetime(2025, 3, 1, tzinfo=ZoneInfo("Africa/Accra"))
+            # Only compute if 'requested_at' exists on the model
+            start_date = datetime(2025, 3, 1, tzinfo=ZoneInfo("Africa/Accra"))
+            if hasattr(Booking, "requested_at"):
+                recent_bookings = (
+                    session.query(Booking).filter(Booking.requested_at >= start_date).count()
+                )
+            else:
+                recent_bookings = 0
 
-        recent_bookings = (
-            session.query(Booking)
-            .filter(Booking.requested_at >= start_date)
-            .count()
-        )
-        total_ammunition = 5000 
+            # TODO: wire to real ammo table once implemented
+            total_ammunition = 5000
+        except Exception as e:
+            import traceback
 
-        session.close()
+            traceback.print_exc()
+            ctk.CTkLabel(
+                self.content_frame,
+                text=f"Dashboard error: {e}",
+                font=ctk.CTkFont(size=16, weight="bold"),
+                text_color="#ffcccc",
+            ).pack(pady=20)
+            session.close()
+            return
+        finally:
+            session.close()
 
         # Display Statistics
         self.create_stat_box(stats_frame, 0, 0, "Total Weapons in Stock", str(total_weapons), "#2fa572")  # Green
         self.create_stat_box(stats_frame, 0, 1, "Weapons Booked Out", str(booked_out), "#c75450")  # Red
         self.create_stat_box(stats_frame, 0, 2, "Weapons Due Return", str(due_return), "#e69138")  # Orange
-        self.create_stat_box(stats_frame, 1, 0, "Recently Booked (24h)", str(recent_bookings), "#3d85c6")  # Blue
+        self.create_stat_box(
+            stats_frame, 1, 0, "Recently Booked (since Mar 1, 2025)", str(recent_bookings), "#3d85c6"
+        )  # Blue
         self.create_stat_box(stats_frame, 1, 1, "Ammunition Count", str(total_ammunition), "#674ea7")  # Purple
 
     def create_stat_box(self, parent, row, column, title, value, color):
@@ -149,8 +175,12 @@ class ArmoryApp(ctk.CTk):
         frame = ctk.CTkFrame(parent, fg_color=color, corner_radius=10)
         frame.grid(row=row, column=column, padx=10, pady=10, sticky="nsew")
 
-        ctk.CTkLabel(frame, text=title, font=ctk.CTkFont(size=14, weight="bold"), text_color="white").pack(pady=(10, 5))
-        ctk.CTkLabel(frame, text=value, font=ctk.CTkFont(size=28, weight="bold"), text_color="white").pack(pady=(0, 10))
+        ctk.CTkLabel(frame, text=title, font=ctk.CTkFont(size=14, weight="bold"), text_color="white").pack(
+            pady=(10, 5)
+        )
+        ctk.CTkLabel(frame, text=value, font=ctk.CTkFont(size=28, weight="bold"), text_color="white").pack(
+            pady=(0, 10)
+        )
 
     def show_users(self):
         """Displays the User Management section."""
@@ -162,6 +192,16 @@ class ArmoryApp(ctk.CTk):
         self.clear_content()
         WeaponManagement(self.content_frame)
 
+    def show_duty_points(self):
+        """Display Duty Point Management."""
+        self.clear_content()
+        DutyPointManagement(self.content_frame).pack(fill="both", expand=True, padx=6, pady=6)
+
+    def show_placeholder(self, text: str):
+        """Temporary placeholder for unfinished modules."""
+        self.clear_content()
+        ctk.CTkLabel(self.content_frame, text=text, font=ctk.CTkFont(size=18, weight="bold")).pack(pady=40)
+
     def clear_content(self):
         """Clears the content area before displaying new content."""
         for widget in self.content_frame.winfo_children():
@@ -171,10 +211,20 @@ class ArmoryApp(ctk.CTk):
         """Handle sign-out functionality."""
         self.destroy()
         from src.gui.login import LoginApp
+
         app = LoginApp()
         app.mainloop()
 
 
+# Optional: keep for compatibility if any code calls run_main_app
 def run_main_app(user):
     app = ArmoryApp(user)
     app.mainloop()
+
+if __name__ == "__main__":
+    # Temporary: create a dummy user for launch
+    class DummyUser:
+        name = "Admin"
+
+    run_main_app(DummyUser())
+
