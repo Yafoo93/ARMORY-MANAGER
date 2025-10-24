@@ -14,7 +14,7 @@ Purpose: To streamline the management of weapons, ammunition, and personnel reco
         -Track weapon details (e.g., serial number, type, condition, location).
         -Categorize weapons by type (e.g., firearms, non-lethal weapons).
         -Monitor weapon availability and status (e.g., in-stock, booked, under maintenance).
-       
+
        2.2 Ammunition Management
        Purpose: Track ammunition stock and usage.
        Description:
@@ -60,7 +60,7 @@ Purpose: To streamline the management of weapons, ammunition, and personnel reco
         -Log all actions (e.g., weapon issued, returned, updated).
         -Track user activity (e.g., login attempts, report generation).
         -Export reports in PDF or Excel format.
- 
+
 # 3. User Management
        3.1 User Roles
         Admin: Full access to the system (e.g., manage users, view reports).
@@ -84,7 +84,7 @@ Purpose: To streamline the management of weapons, ammunition, and personnel reco
         Description:
         -Encrypt sensitive data (e.g., user credentials, weapon details) using AES-256 encryption.
         -Store encrypted data locally on the system.
-       
+
        4.2 Audit Trails
         Purpose: Ensure accountability and compliance.
         Description:
@@ -173,7 +173,7 @@ Purpose: To streamline the management of weapons, ammunition, and personnel reco
        Description:
         -Schedule and log maintenance activities for weapons.
         -Notify Armoury Managers when maintenance is due.
-       
+
        7.2 Multi-User Support
        Purpose: Allow multiple users to access the system simultaneously.
        Description:
@@ -194,12 +194,3 @@ Purpose: To streamline the management of weapons, ammunition, and personnel reco
        8.2 Local Storage
         -Primary Storage: Internal hard drive (minimum 500GB).
         -Backup Storage: External hard drive or NAS (minimum 1TB).
-
-
-
-
-
-
-
-
- 

@@ -1,14 +1,12 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Text, Enum
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text
 from sqlalchemy.orm import relationship
-from src.database import Base
-from datetime import datetime
-from .enums import BookingStatus
-from src.database import Base
 from sqlalchemy.sql import func
+
+from src.database import Base
 
 
 class Booking(Base):
-    __tablename__ = 'bookings'
+    __tablename__ = "bookings"
 
     id = Column(Integer, primary_key=True)
     weapon_id = Column(Integer, ForeignKey("weapons.id"), nullable=False)
@@ -20,6 +18,5 @@ class Booking(Base):
     issued_at = Column(DateTime)
     returned_at = Column(DateTime)
     notes = Column(Text)
-
 
     weapon = relationship("Weapon", back_populates="bookings")

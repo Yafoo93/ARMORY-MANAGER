@@ -1,9 +1,10 @@
-from models.user import User
-from models.weapon import Weapon
 from models.ammunition import Ammunition
 from models.duty_point import DutyPoint
-from models.record import Record
 from models.fingerprint import Fingerprint
+from models.record import Record
+from models.user import User
+from models.weapon import Weapon
+
 
 def test_models():
     # Test User model
@@ -31,7 +32,13 @@ def test_models():
     print("DutyPoint:", new_duty_point)
 
     # Test Record model
-    record = Record(officer_id=1, weapon_id=1, duty_point_id=1, ammo_issued=10, time_booked="2023-10-01 08:00:00")
+    record = Record(
+        officer_id=1,
+        weapon_id=1,
+        duty_point_id=1,
+        ammo_issued=10,
+        time_booked="2023-10-01 08:00:00",
+    )
     record_dict = record.to_dict()
     new_record = Record.from_dict(record_dict)
     print("Record:", new_record)
@@ -41,6 +48,7 @@ def test_models():
     fingerprint_dict = fingerprint.to_dict()
     new_fingerprint = Fingerprint.from_dict(fingerprint_dict)
     print("Fingerprint:", new_fingerprint)
+
 
 if __name__ == "__main__":
     test_models()

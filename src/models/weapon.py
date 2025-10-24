@@ -1,18 +1,17 @@
-from sqlalchemy import Column, Integer, String, DateTime, func, Enum
+from sqlalchemy import Column, DateTime, Integer, String, func
 from sqlalchemy.orm import relationship
+
 from src.database import Base
-from sqlalchemy import Column, Integer, String, ForeignKey
 
 
-
-class Weapon(Base):  
+class Weapon(Base):
     __tablename__ = "weapons"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     serial_number = Column(String, nullable=False, unique=True)
     type = Column(String, nullable=False)
     condition = Column(String, nullable=False)
-    location = Column(String, nullable=True)  
+    location = Column(String, nullable=True)
     status = Column(String, nullable=False)
     last_service = Column(DateTime, server_default=func.now())
     created_at = Column(DateTime, server_default=func.now())
@@ -20,12 +19,15 @@ class Weapon(Base):
     caliber = Column(String, nullable=True)
 
     records = relationship("Record", back_populates="weapon", cascade="all, delete-orphan")
-    
+
     # ✅ Add the relationship to Booking model
     bookings = relationship("Booking", back_populates="weapon", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"Weapon(id={self.id}, serial_number={self.serial_number}, type={self.type}, status={self.status})"
+        return (
+            f"Weapon(id={self.id}, serial_number={self.serial_number}, "
+            f"type={self.type}, status={self.status})"
+        )
 
     def to_dict(self):
         return {

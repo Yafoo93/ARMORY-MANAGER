@@ -1,8 +1,10 @@
-import customtkinter as ctk
 from tkinter import messagebox
+
+import customtkinter as ctk
+
 from src.database import SessionLocal
-from src.models.user import User
 from src.main import run_main_app
+from src.models.user import User
 
 # Set appearance mode and color theme
 ctk.set_appearance_mode("dark")
@@ -23,7 +25,9 @@ class LoginApp(ctk.CTk):
 
         # ✅ Title
         self.title_label = ctk.CTkLabel(
-            self.login_frame, text="🔐 Armory Login", font=ctk.CTkFont(size=22, weight="bold")
+            self.login_frame,
+            text="🔐 Armory Login",
+            font=ctk.CTkFont(size=22, weight="bold"),
         )
         self.title_label.pack(pady=(20, 10))
 
@@ -35,7 +39,11 @@ class LoginApp(ctk.CTk):
 
         # ✅ Password Entry
         self.password_entry = ctk.CTkEntry(
-            self.login_frame, placeholder_text="Password", show="*", width=250, height=40
+            self.login_frame,
+            placeholder_text="Password",
+            show="*",
+            width=250,
+            height=40,
         )
         self.password_entry.pack(pady=10)
 
@@ -53,7 +61,10 @@ class LoginApp(ctk.CTk):
 
         # ✅ Footer Message
         self.footer_label = ctk.CTkLabel(
-            self.login_frame, text="🔒 Secure Access | v1.0", font=ctk.CTkFont(size=12), text_color="gray"
+            self.login_frame,
+            text="🔒 Secure Access | v1.0",
+            font=ctk.CTkFont(size=12),
+            text_color="gray",
         )
         self.footer_label.pack(pady=(10, 20))
 
@@ -69,22 +80,22 @@ class LoginApp(ctk.CTk):
         session = SessionLocal()
         user = session.query(User).filter_by(service_number=service_number).first()
         session.close()
-        
+
         if not user:
             messagebox.showerror("Error", "Invalid credentials")
             return
-        
+
         if not user.verify_password(password):
             messagebox.showerror("Error", "Invalid credentials")
             return
-        
-         # ✅ Role-Based Access Control
+
+        # ✅ Role-Based Access Control
         role = (user.role or "").strip().lower()
         allowed = "armorer"
         if role != allowed:
             messagebox.showerror("ERROR!!, Access Denied", "Only Armorers can log in.")
             return
-        
+
         messagebox.showinfo("Success", f"Welcome, {user.name}!")
         self.withdraw()
         # Launch main app on next loop tick

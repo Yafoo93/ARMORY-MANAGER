@@ -1,11 +1,13 @@
-from sqlalchemy.orm import Session
-from src.models.user import User
-from src.models.fingerprint import Fingerprint
-from cryptography.fernet import Fernet
-import jwt
 from datetime import datetime, timedelta
 from typing import Optional
+
 import bcrypt
+import jwt
+from cryptography.fernet import Fernet
+from sqlalchemy.orm import Session
+
+from src.models.fingerprint import Fingerprint
+from src.models.user import User
 
 
 class AuthService:
@@ -16,39 +18,29 @@ class AuthService:
         self.cipher_suite = Fernet(self.key)
 
     def register_user(
-        self, 
-        service_number: str, 
-        name: str, 
-        telephone: str, 
+        self,
+        service_number: str,
+        name: str,
+        telephone: str,
         role: str,
-        fingerprint_template: Optional[bytes] = None
+        fingerprint_template: Optional[bytes] = None,
     ) -> User:
         """Register a new user with optional fingerprint"""
         # Check if user already exists
-        existing_user = self.db.query(User).filter(
-            User.service_number == service_number
-        ).first()
-        
+        existing_user = self.db.query(User).filter(User.service_number == service_number).first()
+
         if existing_user:
             raise ValueError("User with this service number already exists")
 
         # Create new user
-        new_user = User(
-            service_number=service_number,
-            name=name,
-            telephone=telephone,
-            role=role
-        )
-        
+        new_user = User(service_number=service_number, name=name, telephone=telephone, role=role)
+
         self.db.add(new_user)
         self.db.commit()
 
         # If fingerprint provided, store it
         if fingerprint_template:
-            fingerprint = Fingerprint(
-                template=fingerprint_template,
-                user_id=new_user.id
-            )
+            fingerprint = Fingerprint(template=fingerprint_template, user_id=new_user.id)
             self.db.add(fingerprint)
             self.db.commit()
 
@@ -76,16 +68,16 @@ class AuthService:
     def create_session(self, user_id: int) -> str:
         """Create a session token for authenticated user"""
         payload = {
-            'user_id': user_id,
-            'exp': datetime.utcnow() + timedelta(hours=8)  # Token expires in 8 hours
+            "user_id": user_id,
+            "exp": datetime.utcnow() + timedelta(hours=8),  # Token expires in 8 hours
         }
-        return jwt.encode(payload, str(self.key), algorithm='HS256')
+        return jwt.encode(payload, str(self.key), algorithm="HS256")
 
     def verify_session(self, token: str) -> Optional[int]:
         """Verify session token and return user_id if valid"""
         try:
-            payload = jwt.decode(token, str(self.key), algorithms=['HS256'])
-            return payload['user_id']
+            payload = jwt.decode(token, str(self.key), algorithms=["HS256"])
+            return payload["user_id"]
         except jwt.ExpiredSignatureError:
             return None
         except jwt.InvalidTokenError:
@@ -97,10 +89,8 @@ class AuthService:
 
     def get_user_by_service_number(self, service_number: str) -> Optional[User]:
         """Retrieve user by service number"""
-        return self.db.query(User).filter(
-            User.service_number == service_number
-        ).first()
-        
+        return self.db.query(User).filter(User.service_number == service_number).first()
+
     def check_password(password: str, hashed: str) -> bool:
         """Verify a password against its hash."""
         return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))

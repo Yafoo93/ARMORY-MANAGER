@@ -1,13 +1,17 @@
-from sqlalchemy import Column, Integer, LargeBinary, ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer, LargeBinary
 from sqlalchemy.orm import relationship
+
 from src.database import Base
+
 
 class Fingerprint(Base):
     __tablename__ = "fingerprints"  # Define table name
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     template = Column(LargeBinary, nullable=False)  # Store fingerprint data as binary
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)  # Each user has one fingerprint
+    user_id = Column(
+        Integer, ForeignKey("users.id"), unique=True, nullable=False
+    )  # Each user has one fingerprint
 
     # Relationship with User model
     user = relationship("User", back_populates="fingerprint", foreign_keys=[user_id])
@@ -18,7 +22,7 @@ class Fingerprint(Base):
     def to_dict(self):
         return {
             "id": self.id,
-            "template": self.template,  # Binary data (you may want to encode this before sending in JSON)
+            "template": self.template,  # Binary data (encode before JSON)
             "user_id": self.user_id,
         }
 

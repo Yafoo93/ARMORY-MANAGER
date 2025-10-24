@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
+
 from src.models.duty_point import DutyPoint
+
 
 # Create a new duty point
 def create_duty_point(db: Session, location: str, description: str = None):
@@ -9,16 +11,21 @@ def create_duty_point(db: Session, location: str, description: str = None):
     db.refresh(new_duty_point)
     return new_duty_point
 
+
 # Get a duty point by ID
 def get_duty_point(db: Session, duty_point_id: int):
     return db.query(DutyPoint).filter(DutyPoint.id == duty_point_id).first()
+
 
 # Get all duty points
 def get_all_duty_points(db: Session):
     return db.query(DutyPoint).all()
 
+
 # Update a duty point
-def update_duty_point(db: Session, duty_point_id: int, location: str = None, description: str = None):
+def update_duty_point(
+    db: Session, duty_point_id: int, location: str = None, description: str = None
+):
     duty_point = db.query(DutyPoint).filter(DutyPoint.id == duty_point_id).first()
     if duty_point:
         if location:
@@ -28,6 +35,7 @@ def update_duty_point(db: Session, duty_point_id: int, location: str = None, des
         db.commit()
         db.refresh(duty_point)
     return duty_point
+
 
 # Delete a duty point
 def delete_duty_point(db: Session, duty_point_id: int):

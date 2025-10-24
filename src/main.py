@@ -1,14 +1,13 @@
 import customtkinter as ctk
+from sqlalchemy import func
+
+from src.database import SessionLocal
+from src.gui.ammunition_management import AmmunitionManagement
 from src.gui.user_management import UserManagement
 from src.gui.weapon_management import WeaponManagement
-from src.database import SessionLocal
-from src.models.weapon import Weapon
-from src.models.booking import Booking
-from src.gui.ammunition_management import AmmunitionManagement
-from sqlalchemy import func
 from src.models.ammunition import Ammunition
-
-
+from src.models.booking import Booking
+from src.models.weapon import Weapon
 
 # Set appearance mode and default color theme
 ctk.set_appearance_mode("dark")
@@ -34,11 +33,17 @@ class ArmoryApp(ctk.CTk):
         self.sidebar.grid_rowconfigure(7, weight=1)
 
         # App Logo/Title
-        self.logo_label = ctk.CTkLabel(self.sidebar, text="ARMORY SYSTEM", font=ctk.CTkFont(size=20, weight="bold"))
+        self.logo_label = ctk.CTkLabel(
+            self.sidebar, text="ARMORY SYSTEM", font=ctk.CTkFont(size=20, weight="bold")
+        )
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
         # Navigation Menu Label
-        self.menu_label = ctk.CTkLabel(self.sidebar, text="NAVIGATION MENU", font=ctk.CTkFont(size=12, weight="bold"))
+        self.menu_label = ctk.CTkLabel(
+            self.sidebar,
+            text="NAVIGATION MENU",
+            font=ctk.CTkFont(size=12, weight="bold"),
+        )
         self.menu_label.grid(row=1, column=0, padx=20, pady=(20, 10))
 
         # Menu Buttons
@@ -49,7 +54,7 @@ class ArmoryApp(ctk.CTk):
             "weapons": "Manage Weapons",
             "ammunition": "Manage Ammunition",
             "records": "Booking & Return",
-            "duty_points": "Duty Points"
+            "duty_points": "Duty Points",
         }
 
         for idx, (key, text) in enumerate(menu_items.items()):
@@ -63,7 +68,7 @@ class ArmoryApp(ctk.CTk):
                 text_color="white",
                 hover_color="#1f538d",
                 anchor="w",
-                command=lambda k=key: self.show_frame(k)
+                command=lambda k=key: self.show_frame(k),
             )
             button.grid(row=idx + 2, column=0, padx=20, pady=5, sticky="ew")
             self.menu_buttons[key] = button
@@ -71,9 +76,13 @@ class ArmoryApp(ctk.CTk):
         # Profile section
         self.profile_label = ctk.CTkLabel(
             self.sidebar,
-            text=f"On Duty: {self.user.name}" if self.user and hasattr(self.user, "name") else "Not Signed In",
+            text=(
+                f"On Duty: {self.user.name}"
+                if self.user and hasattr(self.user, "name")
+                else "Not Signed In"
+            ),
             font=ctk.CTkFont(size=12),
-            anchor="w"
+            anchor="w",
         )
         self.profile_label.grid(row=8, column=0, padx=20, pady=(5, 10))
 
@@ -85,7 +94,7 @@ class ArmoryApp(ctk.CTk):
             height=32,
             fg_color="#c75450",
             hover_color="#b44743",
-            command=self.sign_out
+            command=self.sign_out,
         )
         self.sign_out_button.grid(row=9, column=0, padx=20, pady=(0, 10), sticky="ew")
 
@@ -109,29 +118,27 @@ class ArmoryApp(ctk.CTk):
         elif frame_name == "ammunition":
             self.show_ammunition()
         elif frame_name == "records":
-        # TODO: hook your Booking/Return screen here when ready
-        # For now just reuse dashboard or show a placeholder frame
+            # TODO: hook your Booking/Return screen here when ready
+            # For now just reuse dashboard or show a placeholder frame
             self.show_dashboard()
         elif frame_name == "duty_points":
-        # TODO: hook Duty Points management here
+            # TODO: hook Duty Points management here
             self.show_dashboard()
-
 
     def show_dashboard(self):
         """Displays the main dashboard with an overview and statistics."""
         # local imports (ok here)
         from datetime import datetime
         from zoneinfo import ZoneInfo
-        from sqlalchemy import func
 
         self.clear_content()
 
         # Dashboard Title
         welcome_label = ctk.CTkLabel(
-        self.content_frame,
-        text="Welcome to Armory Management System",
-        font=ctk.CTkFont(size=24, weight="bold"),
-        text_color="white",
+            self.content_frame,
+            text="Welcome to Armory Management System",
+            font=ctk.CTkFont(size=24, weight="bold"),
+            text_color="white",
         )
         welcome_label.pack(pady=(20, 10))
 
@@ -152,9 +159,7 @@ class ArmoryApp(ctk.CTk):
             # Recent anchor (Africa/Accra)
             start_date = datetime(2025, 3, 1, tzinfo=ZoneInfo("Africa/Accra"))
             recent_bookings = (
-            session.query(Booking)
-            .filter(Booking.requested_at >= start_date)
-            .count()
+                session.query(Booking).filter(Booking.requested_at >= start_date).count()
             )
 
             # Ammunition sum
@@ -163,20 +168,35 @@ class ArmoryApp(ctk.CTk):
             session.close()
 
         # Display Statistics
-        self.create_stat_box(stats_frame, 0, 0, "Total Weapons in Stock", str(total_weapons), "#2fa572")
+        self.create_stat_box(
+            stats_frame, 0, 0, "Total Weapons in Stock", str(total_weapons), "#2fa572"
+        )
         self.create_stat_box(stats_frame, 0, 1, "Weapons Booked Out", str(booked_out), "#c75450")
         self.create_stat_box(stats_frame, 0, 2, "Weapons Due Return", str(due_return), "#e69138")
-        self.create_stat_box(stats_frame, 1, 0, "Recently Booked (24h)", str(recent_bookings), "#3d85c6")
-        self.create_stat_box(stats_frame, 1, 1, "Ammunition Count", str(total_ammunition), "#674ea7")
-
+        self.create_stat_box(
+            stats_frame, 1, 0, "Recently Booked (24h)", str(recent_bookings), "#3d85c6"
+        )
+        self.create_stat_box(
+            stats_frame, 1, 1, "Ammunition Count", str(total_ammunition), "#674ea7"
+        )
 
     def create_stat_box(self, parent, row, column, title, value, color):
         """Helper function to create a stat box."""
         frame = ctk.CTkFrame(parent, fg_color=color, corner_radius=10)
         frame.grid(row=row, column=column, padx=10, pady=10, sticky="nsew")
 
-        ctk.CTkLabel(frame, text=title, font=ctk.CTkFont(size=14, weight="bold"), text_color="white").pack(pady=(10, 5))
-        ctk.CTkLabel(frame, text=value, font=ctk.CTkFont(size=28, weight="bold"), text_color="white").pack(pady=(0, 10))
+        ctk.CTkLabel(
+            frame,
+            text=title,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="white",
+        ).pack(pady=(10, 5))
+        ctk.CTkLabel(
+            frame,
+            text=value,
+            font=ctk.CTkFont(size=28, weight="bold"),
+            text_color="white",
+        ).pack(pady=(0, 10))
 
     def show_users(self):
         """Displays the User Management section."""
@@ -187,12 +207,11 @@ class ArmoryApp(ctk.CTk):
         """Displays the Weapons Management section."""
         self.clear_content()
         WeaponManagement(self.content_frame)
-        
+
     def show_ammunition(self):
         """Displays the Ammunition Management section."""
         self.clear_content()
         AmmunitionManagement(self.content_frame)
-
 
     def clear_content(self):
         """Clears the content area before displaying new content."""
@@ -203,6 +222,7 @@ class ArmoryApp(ctk.CTk):
         """Handle sign-out functionality."""
         self.destroy()
         from src.gui.login import LoginApp
+
         app = LoginApp()
         app.mainloop()
 
