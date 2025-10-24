@@ -15,7 +15,8 @@ class WeaponStatus(enum.Enum):
     AVAILABLE = "AVAILABLE"
     RESERVED = "RESERVED"
     ISSUED = "ISSUED"
-    MAINTENANCE = "MAINTENANCE"
+    MISSING = "MISSING"
+    DAMAGED = "DAMAGED"
 
 
 class BiometricAction(enum.Enum):
