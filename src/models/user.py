@@ -21,7 +21,7 @@ class User(Base):
         back_populates="user",
         uselist=False,
         foreign_keys="[Fingerprint.user_id]",
-    )  # Link to fingerprints table (if used)
+    )
     records = relationship("Record", back_populates="officer", cascade="all, delete-orphan")
     bookings_as_officer = relationship(
         "Booking", foreign_keys="[Booking.officer_id]", back_populates="officer"

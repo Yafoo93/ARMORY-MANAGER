@@ -14,7 +14,7 @@ from src.database import Base
 
 
 class Ammunition(Base):
-    __tablename__ = "ammunition"
+    __tablename__ = "ammunitions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     weapon_id = Column(Integer, ForeignKey("weapons.id"), nullable=False)
