@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import bcrypt
 from sqlalchemy.exc import IntegrityError
 
-from src.database import SessionLocal, init_db
+from src.database import SessionLocal
 from src.models.duty_point import DutyPoint
 from src.models.fingerprint import Fingerprint
 from src.models.record import Record
@@ -107,13 +107,11 @@ def get_or_create_weapon(db, serial_number, **kwargs) -> Weapon:
 # -----------------------
 # seed starts here
 # -----------------------
-init_db()
 session = SessionLocal()
 ammo = AmmoService(session)
 
 try:
-    # Users (idempotent)
-    # roles must be lowercase to match your login checks
+
     user1 = get_or_create_user(
         session,
         "GHA123",
@@ -136,7 +134,7 @@ try:
         "GP55351",
         name="Kassim Mutawakil",
         telephone="0240286508",
-        role="armory_manager",
+        role="armorer",
         password="admin123",
     )
 
@@ -148,6 +146,7 @@ try:
 
     # Weapons (idempotent + valid statuses)
     # Add optional caliber to help ammo matching downstream
+    # Create or fetch weapons first
     w1 = get_or_create_weapon(
         session,
         "WPN001",
@@ -167,22 +166,37 @@ try:
         caliber="9×19mm Parabellum (9mm Luger)",
     )
 
-    # Ammunition stock lines (by platform+caliber) — idempotent
-    ammo_lines = [
-        ("Rifle", "AK47 / CZ 809 BREN", "7.62×39mm"),
-        ("Pistol/SMG", "SideArm / Škorpion / SMG", "9×19mm Parabellum (9mm Luger)"),
-        ("Shotgun", "Pump Action - Short Gun", "BB Cartridge"),
-        ("Rifle", "G3", "7.62×51mm NATO"),
-        ("Rifle", "CZ 805 BREN", "5.56×45mm NATO"),
-    ]
-    for category, platform, caliber in ammo_lines:
-        ammo.get_or_create(category, platform, caliber)
+    # ✅ Commit weapons first to ensure IDs exist in DB
+    session.commit()
+    # ✅ Refresh to load generated IDs from DB
+    session.refresh(w1)
+    session.refresh(w2)
 
-    # (Optional) give some starting stock for dev/demo
+    # ✅ Create ammunition stock lines linked to specific weapons
+    ammo.get_or_create("Rifle", "AK47 / CZ 809 BREN", "7.62×39mm", weapon_id=w1.id)
+    ammo.get_or_create(
+        "Pistol/SMG", "SideArm / Škorpion / SMG", "9×19mm Parabellum (9mm Luger)", weapon_id=w2.id
+    )
+    ammo.get_or_create("Shotgun", "Pump Action - Short Gun", "BB Cartridge", weapon_id=w1.id)
+    ammo.get_or_create("Rifle", "G3", "7.62×51mm NATO", weapon_id=w1.id)
+    ammo.get_or_create("Rifle", "CZ 805 BREN", "5.56×45mm NATO", weapon_id=w1.id)
+
+    # ✅ (Commented: already handled above)
+    # ammo_lines = [
+    #     ("Rifle", "AK47 / CZ 809 BREN", "7.62×39mm"),
+    #     ("Pistol/SMG", "SideArm / Škorpion / SMG", "9×19mm Parabellum (9mm Luger)"),
+    #     ("Shotgun", "Pump Action - Short Gun", "BB Cartridge"),
+    #     ("Rifle", "G3", "7.62×51mm NATO"),
+    #     ("Rifle", "CZ 805 BREN", "5.56×45mm NATO"),
+    # ]
+    # for category, platform, caliber in ammo_lines:
+    #     ammo.get_or_create(category, platform, caliber)
+
+    # ✅ Give some starting stock for demo/dev environment
     ammo.add_stock("AK47 / CZ 809 BREN", "7.62×39mm", 1200)
     ammo.add_stock("SideArm / Škorpion / SMG", "9×19mm Parabellum (9mm Luger)", 800)
     ammo.add_stock("Pump Action - Short Gun", "BB Cartridge", 300)
-    ammo.add_stock("G3", "7.62×51mm NATO)", 500)
+    ammo.add_stock("G3", "7.62×51mm NATO", 500)  # 👈 removed extra parenthesis here
     ammo.add_stock("CZ 805 BREN", "5.56×45mm NATO", 900)
 
     # Dummy fingerprints (idempotent-ish; only add if none exist for user)
