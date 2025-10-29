@@ -25,7 +25,7 @@ def upgrade() -> None:
 
 
 # add column without server_default
-op.add_column("bookings", sa.Column("created_at", sa.DateTime(timezone=True), nullable=True))
+# op.add_column("bookings", sa.Column("created_at", sa.DateTime(timezone=True), nullable=True))
 
 # manually populate with current time
 conn = op.get_bind()
