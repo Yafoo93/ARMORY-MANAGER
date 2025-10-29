@@ -1,5 +1,7 @@
-import customtkinter as ctk
 from tkinter import messagebox
+
+import customtkinter as ctk
+
 from src.database import SessionLocal
 from src.models.user import User
 
@@ -38,6 +40,15 @@ class LoginApp(ctk.CTk):
         )
         self.password_entry.pack(pady=10)
 
+        # ✅ Inline error label (hidden by default)
+        self.error_label = ctk.CTkLabel(
+            self.login_frame,
+            text="",
+            text_color="#ff4d4f",
+            font=ctk.CTkFont(size=12, weight="normal"),
+        )
+        self.error_label.pack(pady=(4, 0))
+
         # ✅ Login Button
         self.login_button = ctk.CTkButton(
             self.login_frame,
@@ -52,7 +63,10 @@ class LoginApp(ctk.CTk):
 
         # ✅ Footer Message
         self.footer_label = ctk.CTkLabel(
-            self.login_frame, text="🔒 Secure Access | v1.0", font=ctk.CTkFont(size=12), text_color="gray"
+            self.login_frame,
+            text="🔒 Secure Access | v1.0",
+            font=ctk.CTkFont(size=12),
+            text_color="gray",
         )
         self.footer_label.pack(pady=(10, 20))
 
@@ -60,8 +74,11 @@ class LoginApp(ctk.CTk):
         service_number = self.username_entry.get().strip()
         password = self.password_entry.get()
 
+        # clear inline error
+        self.error_label.configure(text="")
+
         if not service_number or not password:
-            messagebox.showerror("Error", "Both fields are required!")
+            self.error_label.configure(text="Both fields are required!")
             return
 
         # ✅ Database Authentication
@@ -72,32 +89,34 @@ class LoginApp(ctk.CTk):
             session.close()
 
         if not user:
-            messagebox.showerror("Error", "Invalid credentials")
+            self.error_label.configure(text="Invalid credentials")
             return
 
         # Ensure your User model exposes verify_password() or change this to user.check_password()
         if not user.verify_password(password):
-            messagebox.showerror("Error", "Invalid credentials")
+            self.error_label.configure(text="Invalid credentials")
             return
 
         # ✅ Role-Based Access Control
         role = (user.role or "").strip().lower()
         allowed = "armorer"
         if role != allowed:
-            messagebox.showerror("ERROR!!, Access Denied", "Only Armorers can log in.")
+            self.error_label.configure(text="Only Armorers can log in.")
             return
 
-        messagebox.showinfo("Success", f"Welcome, {user.name}!")
-
-        # Launch main app shortly after closing login to avoid double mainloops
-        self.withdraw()
-        self.after(50, self._launch_main, user)
+        # Route directly to dashboard without success popup
+        self._launch_main(user)
 
     def _launch_main(self, user):
         # Import here to avoid circular import at module import time
         from src.main import ArmoryApp
+
         try:
-            self.destroy()
+            # Hide login window to avoid pending after-callback issues, destroy later
+            try:
+                self.withdraw()
+            except Exception:
+                pass
             app = ArmoryApp(user)
             app.mainloop()
         except Exception as e:
@@ -106,6 +125,11 @@ class LoginApp(ctk.CTk):
             print("[Login->Main] Failed to launch main app:")
             traceback.print_exc()
             messagebox.showerror("Launch Error", str(e))
+        finally:
+            try:
+                self.destroy()
+            except Exception:
+                pass
 
 
 # ✅ Run Login UI

@@ -85,6 +85,7 @@ def create_booking(
         ammunition_count=ammunition_count or 0,
         remarks=remarks,
         issued_at=datetime.utcnow(),
+        created_at=datetime.utcnow(),
         status="ISSUED",
     )
 
@@ -104,29 +105,32 @@ def return_booking(
     booking_id: int,
     ammunition_returned: int,
     remarks: Optional[str],
+    weapon_status: Optional[str] = None,
 ) -> Booking:
     """
     Return a booking:
       - Must not already be returned.
       - Restores ammunition stock (if booking had ammunition_id).
-      - Requires remarks if returned != issued (either less or more).
-      - Marks weapon back to AVAILABLE.
+      - Remarks are optional.
       - Sets returned_at and status='RETURNED'.
     """
     booking = _get_or_fail(db, Booking, booking_id, "Booking")
 
-    if booking.status and booking.status.upper() == "RETURNED":
+    # Normalize status whether Enum or string
+    status_text = None
+    if booking.status is not None:
+        status_text = getattr(booking.status, "value", None)
+        if not isinstance(status_text, str):
+            status_text = str(booking.status)
+        if status_text.startswith("BookingStatus."):
+            status_text = status_text.split(".", 1)[1]
+    if (status_text or "").upper() == "RETURNED":
         raise ValueError("This booking is already returned")
 
-    issued = booking.ammunition_count or 0
     if ammunition_returned is None or ammunition_returned < 0:
         raise ValueError("Invalid returned ammunition count")
 
-    # Require remarks if mismatch
-    if ammunition_returned != issued and (not remarks or not remarks.strip()):
-        raise ValueError(
-            "Remarks are required when returned ammunition differs from the issued count"
-        )
+    # Remarks are optional regardless of mismatch
 
     # Restore stock if applicable
     if booking.ammunition_id:
@@ -143,7 +147,12 @@ def return_booking(
 
     # Free weapon
     weapon = _get_or_fail(db, Weapon, booking.weapon_id, "Weapon")
-    weapon.status = "AVAILABLE"
+    # Determine final weapon status
+    final_status = (weapon_status or "AVAILABLE").strip().upper()
+    allowed_status = {"AVAILABLE", "DAMAGED", "MISSING"}
+    if final_status not in allowed_status:
+        final_status = "AVAILABLE"
+    weapon.status = final_status
 
     db.commit()
     db.refresh(booking)
