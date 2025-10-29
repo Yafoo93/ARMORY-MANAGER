@@ -1,11 +1,14 @@
 import tkinter as tk
-from datetime import datetime
+
+# from datetime import datetime
 from tkinter import ttk
 
 import customtkinter as ctk
 from CTkMessagebox import CTkMessagebox
 
 from src.crud import crud_booking
+
+# from src.database import SessionLocal
 from src.models.ammunition import Ammunition
 from src.models.booking import Booking
 from src.models.duty_point import DutyPoint
@@ -173,6 +176,22 @@ class BookingManagement(ctk.CTkFrame):
     # ---------------------------------------------------------------------
     # Table helpers
     # ---------------------------------------------------------------------
+    def _format_status(self, status_obj: object) -> str:
+        """Normalize Booking.status to a clean human string.
+
+        Supports both Enum(BookingStatus) and plain string values.
+        """
+        try:
+            value = getattr(status_obj, "value", None)
+            if isinstance(value, str):
+                return value.capitalize()
+            text = str(status_obj) if status_obj is not None else ""
+            if text.startswith("BookingStatus."):
+                text = text.split(".", 1)[1]
+            return text.capitalize() if text else "—"
+        except Exception:
+            return "—"
+
     def refresh_table(self):
         """Reload all booking data."""
         try:
@@ -200,25 +219,32 @@ class BookingManagement(ctk.CTkFrame):
                 return
 
             for b in bookings:
+                status_text = self._format_status(b.status)
+
                 self.tree.insert(
                     "",
                     "end",
                     values=(
                         b.id,
-                        getattr(b.officer, "username", "N/A") if b.officer else "N/A",
-                        getattr(b.officer, "fullname", "N/A") if b.officer else "N/A",
+                        getattr(b.officer, "service_number", "N/A") if b.officer else "N/A",
+                        getattr(b.officer, "name", "N/A") if b.officer else "N/A",
                         getattr(b.weapon, "type", "N/A") if b.weapon else "N/A",
-                        getattr(b.duty_point, "name", "N/A") if b.duty_point else "N/A",
+                        getattr(b.duty_point, "location", "N/A") if b.duty_point else "N/A",
                         getattr(b.ammunition, "caliber", "—") if b.ammunition else "—",
                         b.ammunition_count or 0,
-                        b.status or "N/A",
+                        status_text,
                         b.issued_at.strftime("%Y-%m-%d %H:%M") if b.issued_at else "—",
                         b.returned_at.strftime("%Y-%m-%d %H:%M") if b.returned_at else "—",
                     ),
                 )
+
         except Exception as e:
-            print(f"Error refreshing table: {e}")
-            CTkMessagebox(title="Error", message=f"Error loading bookings: {str(e)}", icon="error")
+            print(f"Error loading bookings: {e}")
+            CTkMessagebox(
+                title="Error",
+                message=f"Error loading bookings: {str(e)}",
+                icon="error",
+            )
 
     def search_booking(self):
         """Search bookings by officer name, service number, or weapon."""
@@ -230,14 +256,12 @@ class BookingManagement(ctk.CTkFrame):
             all_bookings = crud_booking.list_bookings(self.db)
             results = []
             for b in all_bookings:
-                officer_name = (
-                    (getattr(b.officer, "fullname", "") or "").lower() if b.officer else ""
-                )
-                officer_username = (
-                    (getattr(b.officer, "username", "") or "").lower() if b.officer else ""
+                officer_name = (getattr(b.officer, "name", "") or "").lower() if b.officer else ""
+                officer_service_number = (
+                    (getattr(b.officer, "service_number", "") or "").lower() if b.officer else ""
                 )
                 weapon_type = (getattr(b.weapon, "type", "") or "").lower() if b.weapon else ""
-                if query in officer_name or query in officer_username or query in weapon_type:
+                if query in officer_name or query in officer_service_number or query in weapon_type:
                     results.append(b)
 
             if not results:
@@ -252,13 +276,13 @@ class BookingManagement(ctk.CTkFrame):
                     "end",
                     values=(
                         b.id,
-                        getattr(b.officer, "username", "N/A") if b.officer else "N/A",
-                        getattr(b.officer, "fullname", "N/A") if b.officer else "N/A",
+                        getattr(b.officer, "service_number", "N/A") if b.officer else "N/A",
+                        getattr(b.officer, "name", "N/A") if b.officer else "N/A",
                         getattr(b.weapon, "type", "N/A") if b.weapon else "N/A",
-                        getattr(b.duty_point, "name", "N/A") if b.duty_point else "N/A",
+                        getattr(b.duty_point, "location", "N/A") if b.duty_point else "N/A",
                         getattr(b.ammunition, "caliber", "—") if b.ammunition else "—",
                         b.ammunition_count or 0,
-                        b.status or "N/A",
+                        self._format_status(b.status),
                         b.issued_at.strftime("%Y-%m-%d %H:%M") if b.issued_at else "—",
                         b.returned_at.strftime("%Y-%m-%d %H:%M") if b.returned_at else "—",
                     ),
@@ -297,7 +321,7 @@ class BookingManagement(ctk.CTkFrame):
         # Load choices
         officers = self.db.query(User).order_by(User.name.asc()).all()
 
-        duty_points = self.db.query(DutyPoint).order_by(DutyPoint.name.asc()).all()
+        duty_points = self.db.query(DutyPoint).order_by(DutyPoint.location.asc()).all()
         weapons = (
             self.db.query(Weapon)
             .filter(Weapon.status == "AVAILABLE")
@@ -311,9 +335,9 @@ class BookingManagement(ctk.CTkFrame):
         )
 
         # Mappings for id lookup
-        officer_display = [f"{u.username} — {u.name}" for u in officers]
-        dp_display = [dp.name for dp in duty_points]
-        weapon_display = [f"{w.id} — {w.type} ({w.caliber})" for w in weapons]
+        officer_display = [f"{u.service_number} — {u.name}" for u in officers]
+        dp_display = [dp.location for dp in duty_points]
+        weapon_display = [f"{w.id} — {w.type} ({w.serial_number})" for w in weapons]
         ammo_display = ["None"] + [
             f"{a.id} — {a.platform} ({a.caliber}) • stock={a.count}" for a in ammos
         ]
@@ -449,7 +473,7 @@ class BookingManagement(ctk.CTkFrame):
                     self.db.rollback()
                 except Exception:
                     pass
-                CTkMessagebox(title="Error", message=str(e), icon="error")
+                CTkMessagebox(title="Error", message=str(e))
 
         ctk.CTkButton(
             win, text="Book Weapon", fg_color="#007ACC", hover_color="#005B99", command=submit
@@ -509,7 +533,6 @@ class BookingManagement(ctk.CTkFrame):
 
         def submit_return():
             try:
-                # Parse returned ammo
                 try:
                     returned_cnt = int(returned_var.get() or "0")
                     if returned_cnt < 0:
@@ -522,42 +545,22 @@ class BookingManagement(ctk.CTkFrame):
                     )
                     return
 
-                # If ammo was issued, you must return something (can be 0 only if none was issued)
-                if booking.ammunition_id and returned_cnt is None:
-                    CTkMessagebox(title="Error", message="Returned ammo is required.", icon="error")
-                    return
-
-                # If mismatch, remarks required
-                mismatch = returned_cnt != issued_count
                 text_remarks = remarks.get("1.0", "end").strip() or None
-                if mismatch and not text_remarks:
-                    CTkMessagebox(
-                        title="Remarks Required",
-                        message="Please provide remarks when returned ammo differs from issued.",
-                        icon="warning",
-                    )
-                    return
 
-                # Update ammo back to stock (if there was an ammo line)
-                if booking.ammunition_id:
-                    ammo = self.db.query(Ammunition).get(booking.ammunition_id)
-                    if ammo:
-                        ammo.count = (ammo.count or 0) + returned_cnt
+                # ✅ This single line replaces all the manual ammo/weapon/booking updates
+                from src.crud import crud_booking
 
-                # Flip weapon status back to AVAILABLE and close booking
-                weapon = self.db.query(Weapon).get(booking.weapon_id)
-                if weapon:
-                    weapon.status = "AVAILABLE"
+                crud_booking.return_booking(
+                    self.db,
+                    booking_id=booking.id,
+                    ammunition_returned=returned_cnt,
+                    remarks=text_remarks,
+                )
 
-                booking.status = "RETURNED"
-                booking.returned_at = datetime.now()
-                booking.ammunition_returned = returned_cnt if booking.ammunition_id else None
-                if text_remarks:
-                    booking.remarks = text_remarks
-
-                self.db.commit()
                 CTkMessagebox(
-                    title="Success", message=f"Booking #{booking.id} returned.", icon="check"
+                    title="Success",
+                    message=f"Booking #{booking.id} returned successfully.",
+                    icon="check",
                 )
                 win.destroy()
                 self.refresh_table()

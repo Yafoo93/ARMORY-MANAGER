@@ -1,4 +1,3 @@
-# --- allow both "python -m src.seed" and "python src/seed.py"
 import os
 import sys
 
@@ -118,6 +117,7 @@ try:
         name="John Doe",
         telephone="0541234567",
         role="officer",
+        unit="RPID",
         password="officer123",
     )
     user2 = get_or_create_user(
@@ -126,21 +126,22 @@ try:
         name="Jane Smith",
         telephone="0547654321",
         role="armorer",
+        unit="RPID",
         password="manager123",
     )
-    # Add your own manager/admin here if you want:
     mgr = get_or_create_user(
         session,
         "GP55351",
         name="Kassim Mutawakil",
         telephone="0240286508",
         role="armorer",
+        unit="RPID",
         password="admin123",
     )
 
     # Duty points (idempotent)
-    duty1 = get_or_create_duty_point(session, "Patrol Zone A", "Main patrol duty point")
-    duty2 = get_or_create_duty_point(session, "Station Security", "Internal station security")
+    duty1 = get_or_create_duty_point(session, "Patrol Zone A", description="Main patrol duty point")
+    duty2 = get_or_create_duty_point(session, "Barrier", description="Internal station security")
 
     session.flush()  # assign IDs before records
 
@@ -154,7 +155,6 @@ try:
         condition="Good",
         location="Armory",
         status="AVAILABLE",
-        caliber="7.62×39mm",
     )
     w2 = get_or_create_weapon(
         session,
@@ -163,12 +163,9 @@ try:
         condition="Fair",
         location="Armory",
         status="AVAILABLE",
-        caliber="9×19mm Parabellum (9mm Luger)",
     )
 
-    # ✅ Commit weapons first to ensure IDs exist in DB
     session.commit()
-    # ✅ Refresh to load generated IDs from DB
     session.refresh(w1)
     session.refresh(w2)
 
@@ -180,17 +177,6 @@ try:
     ammo.get_or_create("Shotgun", "Pump Action - Short Gun", "BB Cartridge", weapon_id=w1.id)
     ammo.get_or_create("Rifle", "G3", "7.62×51mm NATO", weapon_id=w1.id)
     ammo.get_or_create("Rifle", "CZ 805 BREN", "5.56×45mm NATO", weapon_id=w1.id)
-
-    # ✅ (Commented: already handled above)
-    # ammo_lines = [
-    #     ("Rifle", "AK47 / CZ 809 BREN", "7.62×39mm"),
-    #     ("Pistol/SMG", "SideArm / Škorpion / SMG", "9×19mm Parabellum (9mm Luger)"),
-    #     ("Shotgun", "Pump Action - Short Gun", "BB Cartridge"),
-    #     ("Rifle", "G3", "7.62×51mm NATO"),
-    #     ("Rifle", "CZ 805 BREN", "5.56×45mm NATO"),
-    # ]
-    # for category, platform, caliber in ammo_lines:
-    #     ammo.get_or_create(category, platform, caliber)
 
     # ✅ Give some starting stock for demo/dev environment
     ammo.add_stock("AK47 / CZ 809 BREN", "7.62×39mm", 1200)

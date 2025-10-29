@@ -1,13 +1,24 @@
-from sqlalchemy import Column, Integer, String, DateTime, UniqueConstraint, Index, relationship, ForeignKey
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from src.database import Base
+
 
 class Ammunition(Base):
     __tablename__ = "ammunitions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     weapon_id = Column(Integer, ForeignKey("weapons.id"), nullable=False)
-
+    category = Column(String, nullable=True)
     platform = Column(String, nullable=False)
     caliber = Column(String, nullable=False)
     count = Column(Integer, nullable=False, default=0)
@@ -23,4 +34,3 @@ class Ammunition(Base):
         UniqueConstraint("platform", "caliber", name="uq_ammo_platform_caliber"),
         Index("ix_ammo_caliber", "caliber"),
     )
-

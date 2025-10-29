@@ -1,8 +1,8 @@
-"""add booking table with duty point and ammo tracking
+"""initial full schema
 
-Revision ID: 038673866cef
-Revises: d3a206b3a509
-Create Date: 2025-10-25 09:34:39.792032
+Revision ID: 371f38995421
+Revises:
+Create Date: 2025-10-28 16:29:52.789553
 
 """
 
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "038673866cef"
-down_revision: Union[str, Sequence[str], None] = "d3a206b3a509"
+revision: str = "371f38995421"
+down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -67,7 +67,6 @@ def upgrade() -> None:
             server_default=sa.text("(CURRENT_TIMESTAMP)"),
             nullable=True,
         ),
-        sa.Column("caliber", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("serial_number"),
     )
@@ -151,18 +150,38 @@ def upgrade() -> None:
         "bookings",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("officer_id", sa.Integer(), nullable=False),
+        sa.Column("armorer_id", sa.Integer(), nullable=False),
         sa.Column("weapon_id", sa.Integer(), nullable=False),
         sa.Column("duty_point_id", sa.Integer(), nullable=False),
         sa.Column("ammunition_id", sa.Integer(), nullable=True),
-        sa.Column("issued_ammunition_count", sa.Integer(), nullable=True),
-        sa.Column("returned_ammunition_count", sa.Integer(), nullable=True),
-        sa.Column("remarks", sa.Text(), nullable=True),
-        sa.Column("status", sa.String(), nullable=True),
-        sa.Column("date_issued", sa.DateTime(), nullable=True),
-        sa.Column("date_returned", sa.DateTime(), nullable=True),
+        sa.Column("ammunition_count", sa.Integer(), nullable=True),
+        sa.Column("ammunition_returned", sa.Integer(), nullable=True),
+        sa.Column("remarks", sa.String(), nullable=True),
+        sa.Column(
+            "status",
+            sa.Enum(
+                "REQUESTED",
+                "APPROVED",
+                "ACTIVE",
+                "RETURNED",
+                "OVERDUE",
+                "DAMAGED",
+                "CANCELLED",
+                "REJECTED",
+                name="bookingstatus",
+            ),
+            nullable=False,
+        ),
+        sa.Column("issued_at", sa.DateTime(), nullable=False),
+        sa.Column("expected_return_at", sa.DateTime(), nullable=True),
+        sa.Column("returned_at", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(
             ["ammunition_id"],
             ["ammunitions.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["armorer_id"],
+            ["users.id"],
         ),
         sa.ForeignKeyConstraint(
             ["duty_point_id"],

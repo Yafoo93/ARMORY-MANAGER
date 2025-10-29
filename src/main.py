@@ -1,14 +1,19 @@
-import customtkinter as ctk
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from sqlalchemy import func
 
+import customtkinter as ctk
+
+from src.database import SessionLocal
+from src.gui.ammunition_management import AmmunitionManagement
+from src.gui.booking_management import BookingManagement
+from src.gui.duty_point_management import DutyPointManagement
 from src.gui.user_management import UserManagement
 from src.gui.weapon_management import WeaponManagement
-from src.gui.duty_point_management import DutyPointManagement
-from src.database import SessionLocal
-from src.models.weapon import Weapon
 from src.models.booking import Booking
+from src.models.weapon import Weapon
+
+# from sqlalchemy import func
+
 
 # Set appearance mode and default color theme
 ctk.set_appearance_mode("dark")
@@ -34,11 +39,15 @@ class ArmoryApp(ctk.CTk):
         self.sidebar.grid_rowconfigure(7, weight=1)
 
         # App Logo/Title
-        self.logo_label = ctk.CTkLabel(self.sidebar, text="ARMORY SYSTEM", font=ctk.CTkFont(size=20, weight="bold"))
+        self.logo_label = ctk.CTkLabel(
+            self.sidebar, text="ARMORY SYSTEM", font=ctk.CTkFont(size=20, weight="bold")
+        )
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
         # Navigation Menu Label
-        self.menu_label = ctk.CTkLabel(self.sidebar, text="NAVIGATION MENU", font=ctk.CTkFont(size=12, weight="bold"))
+        self.menu_label = ctk.CTkLabel(
+            self.sidebar, text="NAVIGATION MENU", font=ctk.CTkFont(size=12, weight="bold")
+        )
         self.menu_label.grid(row=1, column=0, padx=20, pady=(20, 10))
 
         # Menu Buttons
@@ -48,7 +57,7 @@ class ArmoryApp(ctk.CTk):
             "users": "Manage Users",
             "weapons": "Manage Weapons",
             "ammunition": "Manage Ammunition",
-            "records": "Booking & Return",
+            "booking": "Booking & Return",
             "duty_points": "Duty Points",
         }
 
@@ -71,7 +80,11 @@ class ArmoryApp(ctk.CTk):
         # Profile section
         self.profile_label = ctk.CTkLabel(
             self.sidebar,
-            text=f"On Duty: {self.user.name}" if self.user and hasattr(self.user, "name") else "Not Signed In",
+            text=(
+                f"On Duty: {self.user.name}"
+                if self.user and hasattr(self.user, "name")
+                else "Not Signed In"
+            ),
             font=ctk.CTkFont(size=12),
             anchor="w",
         )
@@ -105,9 +118,11 @@ class ArmoryApp(ctk.CTk):
             "users": self.show_users,
             "weapons": self.show_weapons,
             "duty_points": self.show_duty_points,
-            "ammunition": lambda: self.show_placeholder("Ammunition module coming next…"),
-            "records": lambda: self.show_placeholder("Booking & Return module coming next…"),
+            "ammunition": self.show_ammunition,
+            "booking": self.show_booking,
         }
+
+        # Call the matching frame function; fallback to dashboard
         routes.get(frame_name, self.show_dashboard)()
 
     def show_dashboard(self):
@@ -137,6 +152,7 @@ class ArmoryApp(ctk.CTk):
 
             # Handle timezone safely (Accra timezone or fallback to UTC)
             from datetime import timezone
+
             try:
                 accra_tz = ZoneInfo("Africa/Accra")  # ✅ Correct timezone format
             except Exception:
@@ -148,9 +164,7 @@ class ArmoryApp(ctk.CTk):
             # Compute recent bookings if the attribute exists
             if hasattr(Booking, "requested_at"):
                 recent_bookings = (
-                    session.query(Booking)
-                    .filter(Booking.requested_at >= start_date)
-                    .count()
+                    session.query(Booking).filter(Booking.requested_at >= start_date).count()
                 )
             else:
                 recent_bookings = 0
@@ -174,25 +188,38 @@ class ArmoryApp(ctk.CTk):
             session.close()
 
         # Display Statistics
-        self.create_stat_box(stats_frame, 0, 0, "Total Weapons in Stock", str(total_weapons), "#2fa572")  # Green
-        self.create_stat_box(stats_frame, 0, 1, "Weapons Booked Out", str(booked_out), "#c75450")  # Red
-        self.create_stat_box(stats_frame, 0, 2, "Weapons Due Return", str(due_return), "#e69138")  # Orange
         self.create_stat_box(
-            stats_frame, 1, 0, "Recently Booked (since Mar 1, 2025)", str(recent_bookings), "#3d85c6"
+            stats_frame, 0, 0, "Total Weapons in Stock", str(total_weapons), "#2fa572"
+        )  # Green
+        self.create_stat_box(
+            stats_frame, 0, 1, "Weapons Booked Out", str(booked_out), "#c75450"
+        )  # Red
+        self.create_stat_box(
+            stats_frame, 0, 2, "Weapons Due Return", str(due_return), "#e69138"
+        )  # Orange
+        self.create_stat_box(
+            stats_frame,
+            1,
+            0,
+            "Recently Booked (since Mar 1, 2025)",
+            str(recent_bookings),
+            "#3d85c6",
         )  # Blue
-        self.create_stat_box(stats_frame, 1, 1, "Ammunition Count", str(total_ammunition), "#674ea7")  # Purple
+        self.create_stat_box(
+            stats_frame, 1, 1, "Ammunition Count", str(total_ammunition), "#674ea7"
+        )  # Purple
 
     def create_stat_box(self, parent, row, column, title, value, color):
         """Helper function to create a stat box."""
         frame = ctk.CTkFrame(parent, fg_color=color, corner_radius=10)
         frame.grid(row=row, column=column, padx=10, pady=10, sticky="nsew")
 
-        ctk.CTkLabel(frame, text=title, font=ctk.CTkFont(size=14, weight="bold"), text_color="white").pack(
-            pady=(10, 5)
-        )
-        ctk.CTkLabel(frame, text=value, font=ctk.CTkFont(size=28, weight="bold"), text_color="white").pack(
-            pady=(0, 10)
-        )
+        ctk.CTkLabel(
+            frame, text=title, font=ctk.CTkFont(size=14, weight="bold"), text_color="white"
+        ).pack(pady=(10, 5))
+        ctk.CTkLabel(
+            frame, text=value, font=ctk.CTkFont(size=28, weight="bold"), text_color="white"
+        ).pack(pady=(0, 10))
 
     def show_users(self):
         """Displays the User Management section."""
@@ -209,10 +236,22 @@ class ArmoryApp(ctk.CTk):
         self.clear_content()
         DutyPointManagement(self.content_frame).pack(fill="both", expand=True, padx=6, pady=6)
 
-    def show_placeholder(self, text: str):
+    def show_ammunition(self):
+        self.clear_content()
+        AmmunitionManagement(self.content_frame)
+
+    def show_booking(self):
+        """Display the Booking & Return Management screen."""
+        self.clear_content()
+        db = SessionLocal()
+        BookingManagement(self.content_frame, db)
+
+    def show_ammunitions(self, text: str):
         """Temporary placeholder for unfinished modules."""
         self.clear_content()
-        ctk.CTkLabel(self.content_frame, text=text, font=ctk.CTkFont(size=18, weight="bold")).pack(pady=40)
+        ctk.CTkLabel(self.content_frame, text=text, font=ctk.CTkFont(size=18, weight="bold")).pack(
+            pady=40
+        )
 
     def clear_content(self):
         """Clears the content area before displaying new content."""
@@ -233,10 +272,10 @@ def run_main_app(user):
     app = ArmoryApp(user)
     app.mainloop()
 
+
 if __name__ == "__main__":
     # Temporary: create a dummy user for launch
     class DummyUser:
         name = "Admin"
 
     run_main_app(DummyUser())
-

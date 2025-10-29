@@ -1,8 +1,8 @@
-"""fix booking armorer reference
+"""update bookingstatus enum values
 
-Revision ID: fe0487239352
-Revises: 038673866cef
-Create Date: 2025-10-25 10:22:52.018613
+Revision ID: 77fb596539f2
+Revises: b7d2904fcc2c
+Create Date: 2025-10-28 22:57:27.127863
 
 """
 
@@ -12,8 +12,8 @@ from typing import Sequence, Union
 # from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "fe0487239352"
-down_revision: Union[str, Sequence[str], None] = "038673866cef"
+revision: str = "77fb596539f2"
+down_revision: Union[str, Sequence[str], None] = "b7d2904fcc2c"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

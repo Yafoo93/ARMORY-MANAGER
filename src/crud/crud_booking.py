@@ -1,6 +1,8 @@
+# src/crud/crud_booking.py
 from datetime import datetime
+from typing import Optional
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from src.models.ammunition import Ammunition
 from src.models.booking import Booking
@@ -9,47 +11,88 @@ from src.models.user import User
 from src.models.weapon import Weapon
 
 
+def list_bookings(db):
+    """Return all bookings with related data loaded."""
+    return (
+        db.query(Booking)
+        .options(
+            joinedload(Booking.officer),
+            joinedload(Booking.weapon),
+            joinedload(Booking.duty_point),
+            joinedload(Booking.ammunition),
+        )
+        .order_by(Booking.issued_at.desc())
+        .all()
+    )
+
+
+def _get_or_fail(db: Session, model, id_: int, label: str):
+    obj = db.get(model, id_)
+    if not obj:
+        raise ValueError(f"{label} not found (id={id_})")
+    return obj
+
+
 def create_booking(
     db: Session,
     *,
     officer_id: int,
-    armorer_id: int,
     weapon_id: int,
     duty_point_id: int,
-    ammunition_id: int | None = None,
+    armorer_id: int,
+    ammunition_id: Optional[int] = None,
     ammunition_count: int = 0,
+    remarks: Optional[str] = None,
 ) -> Booking:
-    """Create a booking and flip weapon status to ISSUED."""
-    weapon = db.query(Weapon).get(weapon_id)
-    if not weapon:
-        raise ValueError("Selected weapon does not exist.")
-    if getattr(weapon, "status", None) != "AVAILABLE":
-        raise ValueError("Weapon is not available.")
+    """
+    Create a booking:
+      - Validates officer/weapon/duty_point.
+      - If ammunition_count>0 then ammunition_id is required and stock >= count.
+      - Deducts stock immediately.
+      - Marks weapon status = 'ISSUED' (string status model).
+      - Sets issued_at and status='ISSUED'.
+    """
+    officer = _get_or_fail(db, User, officer_id, "Officer")
+    armorer = _get_or_fail(db, User, armorer_id, "Armorer")
+    weapon = _get_or_fail(db, Weapon, weapon_id, "Weapon")
+    duty_point = _get_or_fail(db, DutyPoint, duty_point_id, "Duty point")
 
-    dp = db.query(DutyPoint).get(duty_point_id)
-    if not dp:
-        raise ValueError("Selected duty point does not exist.")
+    if weapon.status and weapon.status.upper() in {"ISSUED", "ASSIGNED", "UNAVAILABLE"}:
+        raise ValueError(f"Weapon {weapon.serial_number} is not available")
 
-    if ammunition_id is not None:
-        ammo = db.query(Ammunition).get(ammunition_id)
-        if not ammo:
-            raise ValueError("Selected ammunition does not exist.")
-        if ammunition_count is None:
-            ammunition_count = 0
+    ammo_obj = None
+    if ammunition_count and ammunition_count > 0:
+        if ammunition_id is None:
+            raise ValueError("Ammunition is required when ammunition_count > 0")
+        ammo_obj = _get_or_fail(db, Ammunition, ammunition_id, "Ammunition")
+        if ammo_obj.count is None:
+            ammo_obj.count = 0
+        if ammo_obj.count < ammunition_count:
+            raise ValueError(
+                f"Insufficient stock for {ammo_obj.platform} {ammo_obj.caliber}: "
+                f"have {ammo_obj.count}, need {ammunition_count}"
+            )
+        # Deduct stock
+        ammo_obj.count -= ammunition_count
 
+    # Create booking
     booking = Booking(
-        officer_id=officer_id,
-        armorer_id=armorer_id,
-        weapon_id=weapon_id,
-        duty_point_id=duty_point_id,
-        ammunition_id=ammunition_id,
+        officer_id=officer.id,
+        armorer_id=armorer.id,
+        weapon_id=weapon.id,
+        duty_point_id=duty_point.id,
+        ammunition_id=ammo_obj.id if ammo_obj else None,
         ammunition_count=ammunition_count or 0,
-        issued_at=datetime.now(),
+        remarks=remarks,
+        issued_at=datetime.utcnow(),
         status="ISSUED",
     )
 
+    # Mark weapon out
     weapon.status = "ISSUED"
+
     db.add(booking)
+    db.flush()  # assign id
     db.commit()
     db.refresh(booking)
     return booking
@@ -59,38 +102,49 @@ def return_booking(
     db: Session,
     *,
     booking_id: int,
-    ammunition_returned: int | None = None,
+    ammunition_returned: int,
+    remarks: Optional[str],
 ) -> Booking:
-    """Mark booking returned, flip weapon to AVAILABLE."""
-    booking = db.query(Booking).get(booking_id)
-    if not booking:
-        raise ValueError("Booking not found.")
-    if booking.status == "RETURNED":
-        return booking
+    """
+    Return a booking:
+      - Must not already be returned.
+      - Restores ammunition stock (if booking had ammunition_id).
+      - Requires remarks if returned != issued (either less or more).
+      - Marks weapon back to AVAILABLE.
+      - Sets returned_at and status='RETURNED'.
+    """
+    booking = _get_or_fail(db, Booking, booking_id, "Booking")
 
+    if booking.status and booking.status.upper() == "RETURNED":
+        raise ValueError("This booking is already returned")
+
+    issued = booking.ammunition_count or 0
+    if ammunition_returned is None or ammunition_returned < 0:
+        raise ValueError("Invalid returned ammunition count")
+
+    # Require remarks if mismatch
+    if ammunition_returned != issued and (not remarks or not remarks.strip()):
+        raise ValueError(
+            "Remarks are required when returned ammunition differs from the issued count"
+        )
+
+    # Restore stock if applicable
+    if booking.ammunition_id:
+        ammo_obj = _get_or_fail(db, Ammunition, booking.ammunition_id, "Ammunition")
+        if ammo_obj.count is None:
+            ammo_obj.count = 0
+        ammo_obj.count += ammunition_returned
+
+    # Close booking
+    booking.ammunition_returned = ammunition_returned
+    booking.remarks = remarks
+    booking.returned_at = datetime.utcnow()
     booking.status = "RETURNED"
-    booking.returned_at = datetime.now()
-    if ammunition_returned is not None:
-        booking.ammunition_returned = ammunition_returned
 
-    weapon = db.query(Weapon).get(booking.weapon_id)
-    if weapon:
-        weapon.status = "AVAILABLE"
+    # Free weapon
+    weapon = _get_or_fail(db, Weapon, booking.weapon_id, "Weapon")
+    weapon.status = "AVAILABLE"
 
     db.commit()
     db.refresh(booking)
     return booking
-
-
-def list_bookings(db, limit: int = 50):
-    """Return all bookings safely even if relationships are missing."""
-    return (
-        db.query(Booking)
-        .outerjoin(User, Booking.officer_id == User.id)
-        .outerjoin(Weapon, Booking.weapon_id == Weapon.id)
-        .outerjoin(DutyPoint, Booking.duty_point_id == DutyPoint.id)
-        .outerjoin(Ammunition, Booking.ammunition_id == Ammunition.id)
-        .order_by(Booking.issued_at.desc())
-        .limit(limit)
-        .all()
-    )

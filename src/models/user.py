@@ -1,12 +1,11 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy.orm import relationship
-from src.database import Base
 import bcrypt
-from src.models.booking import Booking
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
+
+from src.database import Base
 
 
-
-class User(Base):  
+class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -17,22 +16,24 @@ class User(Base):
     unit = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
 
-<<<<<<< HEAD
-    fingerprint = relationship("Fingerprint", back_populates="user", uselist=False, foreign_keys="[Fingerprint.user_id]")
-=======
     fingerprint = relationship(
-        "Fingerprint",
-        back_populates="user",
-        uselist=False,
-        foreign_keys="[Fingerprint.user_id]",
+        "Fingerprint", back_populates="user", uselist=False, foreign_keys="[Fingerprint.user_id]"
     )
->>>>>>> 4623602 (feat: updated booking CRUD to match new schema (issued_at, returned_at, ammo tracking))
     records = relationship("Record", back_populates="officer", cascade="all, delete-orphan")
-    bookings_as_officer = relationship("Booking", foreign_keys="[Booking.officer_id]", back_populates="officer")
-    bookings_as_armorer = relationship("Booking", foreign_keys="[Booking.armorer_id]", back_populates="armorer")
+    bookings_as_officer = relationship(
+        "Booking", foreign_keys="[Booking.officer_id]", back_populates="officer"
+    )
+    bookings_as_armorer = relationship(
+        "Booking", foreign_keys="[Booking.armorer_id]", back_populates="armorer"
+    )
 
     def __repr__(self):
-        return f"User(id={self.id}, service_number={self.service_number}, name={self.name}, role={self.role})"
+        return (
+            f"User(id={self.id}"
+            f"service_number={self.service_number}"
+            f"name={self.name}"
+            f"role={self.role})"
+        )
 
     def to_dict(self):
         return {
@@ -60,8 +61,3 @@ class User(Base):
     def verify_password(self, password: str) -> bool:
         """Check the given password against stored hash."""
         return bcrypt.checkpw(password.encode("utf-8"), self.hashed_password.encode("utf-8"))
-    
-   
-
-
-
