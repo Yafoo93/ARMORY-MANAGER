@@ -3,7 +3,9 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from src.database import SessionLocal
+from src.gui.fingerprint_verify import FingerprintVerify
 from src.models.user import User
+from src.services.auth_service import AuthService
 
 # Set appearance mode and color theme
 ctk.set_appearance_mode("dark")
@@ -106,6 +108,19 @@ class LoginApp(ctk.CTk):
 
         # Route directly to dashboard without success popup
         self._launch_main(user)
+
+    def open_fingerprint_login(self):
+        db = SessionLocal()
+        auth = AuthService(db)
+
+        def on_success(user_id):
+            user = auth.get_user_by_id(user_id)
+            if user:
+                self.login_success(user)
+            else:
+                messagebox.showwarning(title="Error", message="User not found", icon="cancel")
+
+        FingerprintVerify(self, callback_on_success=on_success)
 
     def _launch_main(self, user):
         # Import here to avoid circular import at module import time

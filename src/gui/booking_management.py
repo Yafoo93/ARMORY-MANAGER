@@ -8,6 +8,7 @@ from CTkMessagebox import CTkMessagebox
 from sqlalchemy import func
 
 from src.crud import crud_booking
+from src.gui.auth_dialog import AuthDialog
 
 # from src.database import SessionLocal
 from src.models.ammunition import Ammunition
@@ -18,10 +19,11 @@ from src.models.weapon import Weapon
 
 
 class BookingManagement(ctk.CTkFrame):
-    def __init__(self, master, db, *args, **kwargs):
+    def __init__(self, master, db, armorer=None, *args, **kwargs):
         super().__init__(master, corner_radius=10, *args, **kwargs)
         self.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         self.db = db
+        self.armorer = armorer  # Current logged-in armorer
         self.parent = master  # parent reference for dialogs
 
         # === Top toolbar ===
@@ -213,14 +215,35 @@ class BookingManagement(ctk.CTkFrame):
         """Show CTkMessagebox safely when a parent Toplevel has a grab set.
 
         Releases the grab, shows the messagebox (modal), then re-grabs the parent.
+        Note: CTkMessagebox doesn't accept a 'parent' parameter, so we handle grab manually.
         """
+        parent_grab_was_set = False
+        parent_window = None
+
+        # Remove 'parent' from kwargs if present (CTkMessagebox doesn't accept it)
+        kwargs.pop("parent", None)
+
         try:
+            # Check if parent exists and try to release grab
             if parent is not None:
                 try:
-                    parent.grab_release()
+                    # Check if parent window still exists
+                    parent.winfo_exists()
+                    parent_window = parent
+                    # Try to release grab
+                    try:
+                        parent.grab_release()
+                        parent_grab_was_set = True
+                    except Exception:
+                        # No grab was set, that's okay
+                        pass
                 except Exception:
-                    pass
+                    # Parent window doesn't exist or is destroyed
+                    parent_window = None
+
+            # Show messagebox (CTkMessagebox doesn't need parent parameter)
             box = CTkMessagebox(**kwargs)
+
             # Force wait for user action to ensure modality completes
             try:
                 box._window.wait_window()  # type: ignore[attr-defined]
@@ -228,11 +251,15 @@ class BookingManagement(ctk.CTkFrame):
                 pass
             return box
         finally:
-            try:
-                if parent is not None:
-                    parent.grab_set()
-            except Exception:
-                pass
+            # Only re-grab if we successfully released it and parent still exists
+            if parent_grab_was_set and parent_window is not None:
+                try:
+                    # Double-check parent still exists before re-grabbing
+                    parent_window.winfo_exists()
+                    parent_window.grab_set()
+                except Exception:
+                    # Parent was destroyed or can't re-grab, that's okay
+                    pass
 
     def refresh_table(self):
         """Reload all booking data."""
@@ -360,8 +387,6 @@ class BookingManagement(ctk.CTkFrame):
         form_frame = ctk.CTkFrame(win)
         form_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
-        # --- Load choices ---
-        # Ensure we see rows created in other sessions/windows
         try:
             self.db.expire_all()
         except Exception:
@@ -384,7 +409,7 @@ class BookingManagement(ctk.CTkFrame):
         # Display lists and mappings
         officer_display = [f"{u.service_number} — {u.name}" for u in officers]
         dp_display = [dp.location for dp in duty_points]
-        weapon_serials = [w.serial_number for w in weapons]  # search by serial only
+        weapon_serials = [w.serial_number for w in weapons]
         ammo_display = [
             "None",
             *[f"{a.id} — {a.platform} ({a.caliber}) • stock={a.count}" for a in ammos],
@@ -393,7 +418,8 @@ class BookingManagement(ctk.CTkFrame):
         # --- Officer (search by name or service number) ---
         ctk.CTkLabel(form_frame, text="Officer").pack(anchor="w", pady=(6, 2))
         self.officer_combobox = ctk.CTkComboBox(form_frame, values=officer_display, width=420)
-        self.officer_combobox.set("Type officer name or service number…")
+        if officer_display:
+            self.officer_combobox.set("")
         self.officer_combobox.bind(
             "<KeyRelease>", lambda e: self.filter_combobox(self.officer_combobox, officer_display)
         )
@@ -402,7 +428,8 @@ class BookingManagement(ctk.CTkFrame):
         # --- Duty Point (search by name/location) ---
         ctk.CTkLabel(form_frame, text="Duty Point").pack(anchor="w", pady=(10, 2))
         self.duty_combobox = ctk.CTkComboBox(form_frame, values=dp_display, width=420)
-        self.duty_combobox.set("Type duty point name…")
+        if dp_display:
+            self.duty_combobox.set("")
         self.duty_combobox.bind(
             "<KeyRelease>", lambda e: self.filter_combobox(self.duty_combobox, dp_display)
         )
@@ -411,7 +438,8 @@ class BookingManagement(ctk.CTkFrame):
         # --- Weapon (search by serial number only) ---
         ctk.CTkLabel(form_frame, text="Weapon Serial").pack(anchor="w", pady=(10, 2))
         self.weapon_combobox = ctk.CTkComboBox(form_frame, values=weapon_serials, width=420)
-        self.weapon_combobox.set("Type weapon serial number…")
+        if weapon_serials:
+            self.weapon_combobox.set("")
         self.weapon_combobox.bind(
             "<KeyRelease>", lambda e: self.filter_combobox(self.weapon_combobox, weapon_serials)
         )
@@ -509,29 +537,120 @@ class BookingManagement(ctk.CTkFrame):
                     ammo_row.count = (ammo_row.count or 0) - ammunition_count
                     ammunition_id = ammo_row.id
 
-                # Create booking (also flips weapon to ISSUED)
-                # Use logged-in armorer (current user) from parent if available;
-                # fall back to officer_id
-                current_user = getattr(self.parent, "current_user", None)
-                armorer_id = getattr(current_user, "id", None) or officer_id
+                # Get armorer (current logged-in user)
+                if not self.armorer:
+                    self._safe_messagebox(
+                        win,
+                        title="Error",
+                        message="Armorer information not available. Please log in again.",
+                        icon="warning",
+                    )
+                    return
 
-                # Perform in one transaction: ammo deduction is already staged in this session,
-                # and create_booking will commit it together with the new booking.
-                booking = crud_booking.create_booking(
-                    self.db,
-                    officer_id=officer_id,
-                    armorer_id=armorer_id,
-                    weapon_id=weapon_id,
-                    duty_point_id=duty_point_id,
-                    ammunition_id=ammunition_id,
-                    ammunition_count=ammunition_count,
-                )
+                # Refresh armorer from database to ensure we have latest password hash
+                armorer = self.db.query(User).get(self.armorer.id)
+                if not armorer:
+                    self._safe_messagebox(
+                        win,
+                        title="Error",
+                        message="Armorer not found in database.",
+                        icon="warning",
+                    )
+                    return
 
-                self._safe_messagebox(
-                    win, title="Success", message=f"Booking #{booking.id} created.", icon="check"
-                )
-                win.destroy()
-                self.refresh_table()
+                armorer_id = armorer.id
+                officer = officers[o_index]
+
+                # Authentication flow: First authenticate armorer, then officer
+                def authenticate_armorer():
+                    """Step 1: Authenticate the armorer."""
+
+                    def on_armorer_verified(user_id):
+                        if user_id != armorer_id:
+                            self._safe_messagebox(
+                                win,
+                                title="Access Denied",
+                                message="Armorer authentication failed.",
+                                icon="cancel",
+                            )
+                            return
+
+                        # Step 2: Authenticate the officer
+                        def on_officer_verified(user_id):
+                            if user_id != officer_id:
+                                self._safe_messagebox(
+                                    win,
+                                    title="Access Denied",
+                                    message="Officer authentication failed.",
+                                    icon="cancel",
+                                )
+                                return
+
+                            # Both authenticated - create booking
+                            try:
+                                # Re-verify weapon is still available before creating booking
+                                weapon_check = self.db.query(Weapon).get(weapon_id)
+                                if not weapon_check or weapon_check.status.upper() != "AVAILABLE":
+                                    weapon_serial = weapon_serials[w_index]
+                                    error_msg = (
+                                        f"Weapon {weapon_serial} is no longer available. "
+                                        "Please select another weapon."
+                                    )
+                                    self._safe_messagebox(
+                                        win,
+                                        title="Error",
+                                        message=error_msg,
+                                        icon="warning",
+                                    )
+                                    return
+
+                                booking = crud_booking.create_booking(
+                                    self.db,
+                                    officer_id=officer_id,
+                                    armorer_id=armorer_id,
+                                    weapon_id=weapon_id,
+                                    duty_point_id=duty_point_id,
+                                    ammunition_id=ammunition_id,
+                                    ammunition_count=ammunition_count,
+                                )
+
+                                # Close booking form first
+                                try:
+                                    win.destroy()
+                                except Exception:
+                                    pass
+
+                                # Refresh table first (important: do this before showing message)
+                                self.refresh_table()
+
+                                # Show success message (wrap in try-except so refresh still happens)
+                                try:
+                                    self._safe_messagebox(
+                                        self,
+                                        title="Success",
+                                        message=f"Booking #{booking.id} created.",
+                                        icon="check",
+                                    )
+                                except Exception as msg_error:
+                                    # If messagebox fails, at least log it but don't prevent refresh
+                                    print(f"Error showing success message: {msg_error}")
+                            except Exception as e:
+                                try:
+                                    self.db.rollback()
+                                except Exception:
+                                    pass
+                                self._safe_messagebox(
+                                    win, title="Error", message=str(e), icon="warning"
+                                )
+
+                        # Authenticate officer
+                        AuthDialog(win, officer, "Officer", on_officer_verified)
+
+                    # Authenticate armorer
+                    AuthDialog(win, armorer, "Armorer", on_armorer_verified)
+
+                # Start authentication flow
+                authenticate_armorer()
 
             except Exception as e:
                 # Roll back any staged changes in the session for safety
@@ -620,6 +739,7 @@ class BookingManagement(ctk.CTkFrame):
 
         def submit_return():
             try:
+                # Validate returned ammo count
                 try:
                     returned_cnt = int((returned_var.get() or "0").strip())
                     if returned_cnt < 0:
@@ -635,25 +755,114 @@ class BookingManagement(ctk.CTkFrame):
 
                 text_remarks = remarks.get("1.0", "end").strip() or None
 
-                # ✅ This single line replaces all the manual ammo/weapon/booking updates
-                from src.crud import crud_booking
+                # Get armorer and officer
+                if not self.armorer:
+                    self._safe_messagebox(
+                        win,
+                        title="Error",
+                        message="Armorer information not available. Please log in again.",
+                        icon="warning",
+                    )
+                    return
 
-                crud_booking.return_booking(
-                    self.db,
-                    booking_id=booking.id,
-                    ammunition_returned=returned_cnt,
-                    remarks=text_remarks,
-                    weapon_status=status_var.get(),
-                )
+                # Refresh armorer from database to ensure we have latest password hash
+                armorer = self.db.query(User).get(self.armorer.id)
+                if not armorer:
+                    self._safe_messagebox(
+                        win,
+                        title="Error",
+                        message="Armorer not found in database.",
+                        icon="warning",
+                    )
+                    return
 
-                self._safe_messagebox(
-                    win,
-                    title="Success",
-                    message=f"Booking #{booking.id} returned successfully.",
-                    icon="check",
-                )
-                win.destroy()
-                self.refresh_table()
+                armorer_id = armorer.id
+                officer = self.db.query(User).get(booking.officer_id)
+
+                if not officer:
+                    self._safe_messagebox(
+                        win,
+                        title="Error",
+                        message="Officer not found for this booking.",
+                        icon="warning",
+                    )
+                    return
+
+                # Authentication flow: First authenticate armorer, then officer
+                def authenticate_armorer():
+                    """Step 1: Authenticate the armorer."""
+
+                    def on_armorer_verified(user_id):
+                        if user_id != armorer_id:
+                            self._safe_messagebox(
+                                win,
+                                title="Access Denied",
+                                message="Armorer authentication failed.",
+                                icon="cancel",
+                            )
+                            return
+
+                        # Step 2: Authenticate the officer
+                        def on_officer_verified(user_id):
+                            if user_id != booking.officer_id:
+                                self._safe_messagebox(
+                                    win,
+                                    title="Access Denied",
+                                    message="Officer authentication failed.",
+                                    icon="cancel",
+                                )
+                                return
+
+                            # Both authenticated - process return
+                            try:
+                                from src.crud import crud_booking
+
+                                crud_booking.return_booking(
+                                    self.db,
+                                    booking_id=booking.id,
+                                    ammunition_returned=returned_cnt,
+                                    remarks=text_remarks,
+                                    weapon_status=status_var.get(),
+                                )
+
+                                # Close return form first
+                                try:
+                                    win.destroy()
+                                except Exception:
+                                    pass
+
+                                # Refresh table first (important: do this before showing message)
+                                self.refresh_table()
+
+                                # Show success message on main window
+                                # (wrap in try-except so refresh still happens)
+                                try:
+                                    self._safe_messagebox(
+                                        self,
+                                        title="Success",
+                                        message=f"Booking #{booking.id} returned successfully.",
+                                        icon="check",
+                                    )
+                                except Exception as msg_error:
+                                    # If messagebox fails, at least log it but don't prevent refresh
+                                    print(f"Error showing success message: {msg_error}")
+                            except Exception as e:
+                                try:
+                                    self.db.rollback()
+                                except Exception:
+                                    pass
+                                self._safe_messagebox(
+                                    win, title="Error", message=str(e), icon="warning"
+                                )
+
+                        # Authenticate officer
+                        AuthDialog(win, officer, "Officer", on_officer_verified)
+
+                    # Authenticate armorer
+                    AuthDialog(win, armorer, "Armorer", on_armorer_verified)
+
+                # Start authentication flow
+                authenticate_armorer()
 
             except Exception as e:
                 try:

@@ -6,6 +6,7 @@ from sqlalchemy import text
 
 from src.crud.crud_user import create_user, delete_user, get_all_users, update_user
 from src.database import SessionLocal
+from src.gui.fingerprint_enroll import FingerprintEnroll
 
 # Set appearance mode and default color theme
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
@@ -209,6 +210,7 @@ class UserManagement(ctk.CTkFrame):
         self.button_frame.columnconfigure(0, weight=1)
         self.button_frame.columnconfigure(1, weight=1)
         self.button_frame.columnconfigure(2, weight=1)
+        self.button_frame.columnconfigure(3, weight=1)
 
         # Modern buttons with icons
         self.add_button = ctk.CTkButton(
@@ -244,10 +246,21 @@ class UserManagement(ctk.CTkFrame):
         )
         self.delete_button.grid(row=0, column=2, padx=10, pady=10, sticky="ew")
 
+        # Enroll Fingerprint button
+        self.enroll_button = ctk.CTkButton(
+            self.button_frame,
+            text="Enroll Fingerprint",
+            fg_color="#9C27B0",  # Purple
+            hover_color="#7B1FA2",
+            height=40,
+            corner_radius=8,
+            command=self.open_fingerprint_enroll,
+        )
+        self.enroll_button.grid(row=0, column=3, padx=10, pady=10, sticky="ew")
+
         # Add event binding for double-click edit
         self.tree.bind("<Double-1>", lambda event: self.edit_user())
 
-        # Replace the global binding with widget-specific binding
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
 
         # Add unbind method for cleanup
@@ -348,6 +361,27 @@ class UserManagement(ctk.CTkFrame):
         dialog = AddUserDialog(self.winfo_toplevel(), self)
         self.parent.wait_window(dialog)  # Wait for dialog to close
         self.dialog_open = False
+
+    def open_fingerprint_enroll(self):
+        selected_user_id = self.get_selected_user_id()
+        if selected_user_id:
+            FingerprintEnroll(self, selected_user_id)
+        else:
+            messagebox.showwarning(title="Warning", message="Select a user first!", icon="warning")
+
+    def get_selected_user_id(self):
+        """Return the actual database user.id for the selected row, or None."""
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return None
+        try:
+            display_values = self.tree.item(selected_item)["values"]
+            display_index = int(display_values[0])  # 1-based index used in the table
+            users = get_all_users(self.db)
+            # Convert table index back to the user's primary key
+            return users[display_index - 1].id if 0 < display_index <= len(users) else None
+        except Exception:
+            return None
 
     def edit_user(self):
         """Open a dialog to edit a selected user."""

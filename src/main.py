@@ -36,7 +36,8 @@ class ArmoryApp(ctk.CTk):
         # Create Navigation Frame (Sidebar)
         self.sidebar = ctk.CTkFrame(self, width=250, corner_radius=0, fg_color="#333333")
         self.sidebar.grid(row=0, column=0, sticky="nsew")
-        self.sidebar.grid_rowconfigure(7, weight=1)
+        # Configure expandable row between menu items and bottom section (profile + sign out)
+        self.sidebar.grid_rowconfigure(8, weight=1)
 
         # App Logo/Title
         self.logo_label = ctk.CTkLabel(
@@ -48,7 +49,7 @@ class ArmoryApp(ctk.CTk):
         self.menu_label = ctk.CTkLabel(
             self.sidebar, text="NAVIGATION MENU", font=ctk.CTkFont(size=12, weight="bold")
         )
-        self.menu_label.grid(row=1, column=0, padx=20, pady=(20, 10))
+        self.menu_label.grid(row=1, column=0, padx=20, pady=(10, 5))
 
         # Menu Buttons
         self.menu_buttons = {}
@@ -88,7 +89,7 @@ class ArmoryApp(ctk.CTk):
             font=ctk.CTkFont(size=12),
             anchor="w",
         )
-        self.profile_label.grid(row=8, column=0, padx=20, pady=(5, 10))
+        self.profile_label.grid(row=9, column=0, padx=20, pady=(5, 10))
 
         # Sign Out Button
         self.sign_out_button = ctk.CTkButton(
@@ -100,7 +101,7 @@ class ArmoryApp(ctk.CTk):
             hover_color="#b44743",
             command=self.sign_out,
         )
-        self.sign_out_button.grid(row=9, column=0, padx=20, pady=(0, 10), sticky="ew")
+        self.sign_out_button.grid(row=10, column=0, padx=20, pady=(0, 10), sticky="ew")
 
         # Create Main Content Frame
         self.content_frame = ctk.CTkFrame(self, corner_radius=10)
@@ -244,7 +245,7 @@ class ArmoryApp(ctk.CTk):
         """Display the Booking & Return Management screen."""
         self.clear_content()
         db = SessionLocal()
-        BookingManagement(self.content_frame, db)
+        BookingManagement(self.content_frame, db, armorer=self.user)
 
     def show_ammunitions(self, text: str):
         """Temporary placeholder for unfinished modules."""

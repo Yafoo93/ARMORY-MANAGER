@@ -52,8 +52,10 @@ class AuthService:
         if not user or not user.fingerprint:
             return False
 
-        # In a real application, you would use the fingerprint SDK to compare templates
-        # This is a placeholder for the actual fingerprint comparison logic
+        def _compare_fingerprints(self, template1: bytes, template2: bytes) -> bool:
+            """Compare fingerprint templates. Replace this with your SDK logic."""
+            return template1 == template2
+
         stored_template = user.fingerprint.template
         return self._compare_fingerprints(stored_template, fingerprint_template)
 
